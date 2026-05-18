@@ -5,11 +5,11 @@ import LoginPage from "../pages/auth/LoginPage";
 import DashboardPage from "../pages/dashboard/DashboardPage";
 import FacultyPage from "../pages/faculty/FacultyPage";
 import CoursesPage from "../pages/courses/CoursesPage";
-import SubjectsPage from "../pages/subjects/SubjectsPage";
 import RoomsPage from "../pages/rooms/RoomsPage";
 import ScheduleAssignmentPage from "../pages/schedules/ScheduleAssignmentPage";
 import FacultySchedulePage from "../pages/facultySchedule/FacultySchedulePage";
 import PrintableSchedulePage from "../pages/printable/PrintableSchedulePage";
+import CurriculumPage from "../pages/curriculum/CurriculumPage";
 
 
 
@@ -43,9 +43,9 @@ const AppRouter = () => {
     <MainLayout><CoursesPage /></MainLayout>
   </ProtectedRoute>
 } />
-       <Route path="/subjects" element={
+       <Route path="/curriculum" element={
   <ProtectedRoute>
-    <MainLayout><SubjectsPage /></MainLayout>
+    <MainLayout><CurriculumPage/></MainLayout>
   </ProtectedRoute>
 } />
         <Route path="/rooms" element={

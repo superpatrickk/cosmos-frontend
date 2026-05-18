@@ -124,6 +124,7 @@ const ScheduleForm = ({
         value={form[name]}
         onChange={handleChange}
         placeholder={`e.g. ${name === "section" ? "A, B, C" : ""}`}
+        step={type === "time" ? 1800 : undefined}
         className={`px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
           errors[name] ? "border-red-400 bg-red-50" : "border-gray-200"
         }`}

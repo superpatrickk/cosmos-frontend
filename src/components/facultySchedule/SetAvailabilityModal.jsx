@@ -1,106 +1,89 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  X,
-  Loader2,
-  RotateCcw,
-  CalendarDays,
-  Clock3,
+  AlertCircle,
+  CheckCircle2,
   Copy,
+  Loader2,
   Plus,
   Trash2,
-  AlertCircle,
+  X,
 } from "lucide-react";
 
-// ─────────────────────────────────────
-// Constants
-// ─────────────────────────────────────
-const DAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const SCHOOL_START = "07:00";
+const SCHOOL_END = "21:00";
+const INTERVAL_MINUTES = 30;
+
+const DURATION_OPTIONS = [
+  { label: "1 hr", value: 60 },
+  { label: "2 hrs", value: 120 },
+  { label: "3 hrs", value: 180 },
+  { label: "4 hrs", value: 240 },
+  { label: "5 hrs", value: 300 },
+  { label: "6 hrs", value: 360 },
 ];
 
-const QUICK_PRESETS = [
-  {
-    label: "Morning",
-    slots: [
-      {
-        start: "07:00",
-        end: "12:00",
-      },
-    ],
-  },
-
-  {
-    label: "Afternoon",
-    slots: [
-      {
-        start: "13:00",
-        end: "17:00",
-      },
-    ],
-  },
-
-  {
-    label: "Whole Day",
-    slots: [
-      {
-        start: "08:00",
-        end: "18:00",
-      },
-    ],
-  },
+const PRESETS = [
+  { label: "Morning", start: "07:00", end: "12:00", maxMeetingMinutes: 300 },
+  { label: "Afternoon", start: "13:00", end: "18:00", maxMeetingMinutes: 300 },
+  { label: "Whole Day", start: "08:00", end: "17:00", maxMeetingMinutes: 300 },
 ];
 
-const EMPTY_AVAIL = {
-  Monday: [],
-  Tuesday: [],
-  Wednesday: [],
-  Thursday: [],
-  Friday: [],
-  Saturday: [],
+const toMinutes = (time) => {
+  const [hour, minute] = (time || "00:00").split(":").map(Number);
+  return hour * 60 + minute;
 };
 
-// ─────────────────────────────────────
-// Normalize Old + New Data
-// ─────────────────────────────────────
+const toTime = (minutes) => {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+};
+
+const normalizeTime = (time) => {
+  if (!time) return "";
+  const [hour, minute = "00"] = time.split(":");
+  return `${String(Number(hour)).padStart(2, "0")}:${minute.padStart(2, "0")}`;
+};
+
+const formatTime = (time) => {
+  if (!time) return "--";
+  const [rawHour, minute] = time.split(":");
+  const hour = Number(rawHour);
+  return `${hour % 12 || 12}:${minute} ${hour >= 12 ? "PM" : "AM"}`;
+};
+
+const formatDuration = (minutes) => {
+  if (!minutes || minutes <= 0) return "0 hr";
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder ? `${hours} hr ${remainder} min` : `${hours} hr${hours > 1 ? "s" : ""}`;
+};
+
+const getDuration = (slot) => toMinutes(slot.end) - toMinutes(slot.start);
+
 const normalizeAvailability = (data) => {
-  const normalized = { ...EMPTY_AVAIL };
+  const normalized = DAYS.reduce((map, day) => ({ ...map, [day]: [] }), {});
 
   DAYS.forEach((day) => {
-    const slots = data?.[day] || [];
-
-    normalized[day] = slots.map((slot) => {
-
-      // OLD STRING FORMAT
-      // "7:00-9:00"
+    normalized[day] = (data?.[day] || []).map((slot) => {
       if (typeof slot === "string") {
-        const [start, end] =
-          slot.split("-");
-
+        const [start, end] = slot.split("-");
+        const duration = toMinutes(normalizeTime(end)) - toMinutes(normalizeTime(start));
         return {
-          start:
-            start?.length === 4
-              ? `0${start}`
-              : start || "",
-
-          end:
-            end?.length === 4
-              ? `0${end}`
-              : end || "",
+          start: normalizeTime(start),
+          end: normalizeTime(end),
+          maxMeetingMinutes: Math.min(Math.max(duration, 60), 300),
         };
       }
 
-      // NEW OBJECT FORMAT
+      const start = normalizeTime(slot?.start);
+      const end = normalizeTime(slot?.end);
+      const duration = toMinutes(end) - toMinutes(start);
       return {
-        start:
-          slot?.start || "",
-
-        end:
-          slot?.end || "",
+        start,
+        end,
+        maxMeetingMinutes: Number(slot?.maxMeetingMinutes || Math.min(Math.max(duration, 60), 300)),
       };
     });
   });
@@ -108,785 +91,315 @@ const normalizeAvailability = (data) => {
   return normalized;
 };
 
-// ─────────────────────────────────────
-// Component
-// ─────────────────────────────────────
-const SetAvailabilityModal = ({
-  open,
-  faculty,
-  onClose,
-  onSubmit,
-}) => {
+const getAssignedForDay = (assignedSchedules, day) =>
+  (assignedSchedules || [])
+    .filter((schedule) => schedule.day === day)
+    .map((schedule) => ({
+      ...schedule,
+      start: normalizeTime(schedule.startTime),
+      end: normalizeTime(schedule.endTime),
+    }));
 
-  const [availability, setAvailability] =
-    useState(EMPTY_AVAIL);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [selectedDay, setSelectedDay] =
-    useState("Monday");
-
-  // ─────────────────────────────────────
-  // Initialize Data
-  // ─────────────────────────────────────
-  useEffect(() => {
-    if (open && faculty) {
-      setAvailability(
-        faculty.availability
-          ? normalizeAvailability(
-              faculty.availability
-            )
-          : EMPTY_AVAIL
-      );
+const validateSlots = (slots, assignedSchedules, day) => {
+  for (const slot of slots) {
+    if (!slot.start || !slot.end) return "Complete all start and end times.";
+    if (slot.start >= slot.end) return "End time must be later than start time.";
+    if (slot.start < SCHOOL_START || slot.end > SCHOOL_END) return "Use times between 7:00 AM and 9:00 PM.";
+    if (toMinutes(slot.start) % INTERVAL_MINUTES || toMinutes(slot.end) % INTERVAL_MINUTES) {
+      return "Use 30-minute time intervals.";
     }
-  }, [open, faculty]);
+    if (slot.maxMeetingMinutes > getDuration(slot)) return "Max class length cannot be longer than the available block.";
+  }
 
-  // ─────────────────────────────────────
-  // Memo
-  // ─────────────────────────────────────
-  const totalSlots = useMemo(() => {
-    return Object.values(
-      availability
-    ).reduce(
-      (total, day) =>
-        total + day.length,
-      0
-    );
-  }, [availability]);
+  const sorted = [...slots].sort((a, b) => a.start.localeCompare(b.start));
+  for (let index = 1; index < sorted.length; index += 1) {
+    if (sorted[index].start < sorted[index - 1].end) return "Availability blocks cannot overlap.";
+  }
 
-  const activeDays = useMemo(() => {
-    return DAYS.filter(
-      (day) =>
-        availability[day]
-          .length > 0
-    ).length;
-  }, [availability]);
+  const assigned = getAssignedForDay(assignedSchedules, day);
+  const uncovered = assigned.find((schedule) =>
+    !slots.some((slot) => slot.start <= schedule.start && slot.end >= schedule.end)
+  );
+  if (uncovered) return `${uncovered.subjectCode} is already assigned outside this availability.`;
 
-  // IMPORTANT
-  // Hooks must stay above return
-  if (!open || !faculty)
-    return null;
+  return "";
+};
 
-  // ─────────────────────────────────────
-  // Slot Actions
-  // ─────────────────────────────────────
-  const addSlot = (day) => {
+const SetAvailabilityModal = ({ open, faculty, onClose, onSubmit }) => {
+  if (!open || !faculty) return null;
+
+  return (
+    <SetAvailabilityModalContent
+      key={faculty.id}
+      faculty={faculty}
+      onClose={onClose}
+      onSubmit={onSubmit}
+    />
+  );
+};
+
+const SetAvailabilityModalContent = ({ faculty, onClose, onSubmit }) => {
+  const [availability, setAvailability] = useState(() => normalizeAvailability(faculty.availability));
+  const [selectedDay, setSelectedDay] = useState("Monday");
+  const [loading, setLoading] = useState(false);
+
+  const assignedSchedules = useMemo(() => faculty.assignedSchedules || [], [faculty.assignedSchedules]);
+  const currentSlots = availability[selectedDay];
+  const selectedAssigned = getAssignedForDay(assignedSchedules, selectedDay);
+
+  const errorMap = useMemo(() => {
+    const errors = {};
+    DAYS.forEach((day) => {
+      errors[day] = validateSlots(availability[day], assignedSchedules, day);
+    });
+    return errors;
+  }, [availability, assignedSchedules]);
+
+  const totalSlots = Object.values(availability).reduce((sum, slots) => sum + slots.length, 0);
+  const hasErrors = Object.values(errorMap).some(Boolean);
+  const currentError = errorMap[selectedDay];
+
+  const updateDay = (day, slots) => {
+    setAvailability((prev) => ({ ...prev, [day]: slots }));
+  };
+
+  const addSlot = (durationMinutes = 300) => {
     setAvailability((prev) => {
-
-      const last =
-        prev[day][
-          prev[day].length - 1
-        ];
-
-      const nextStart =
-        last?.end || "07:00";
+      const slots = prev[selectedDay];
+      const last = slots[slots.length - 1];
+      const start = last?.end || SCHOOL_START;
+      const end = toTime(Math.min(toMinutes(start) + durationMinutes, toMinutes(SCHOOL_END)));
+      const duration = toMinutes(end) - toMinutes(start);
 
       return {
         ...prev,
-
-        [day]: [
-          ...prev[day],
-
-          {
-            start: nextStart,
-            end: "",
-          },
+        [selectedDay]: [
+          ...slots,
+          { start, end, maxMeetingMinutes: Math.min(duration, durationMinutes) },
         ],
       };
     });
   };
 
-  const updateSlot = (
-    day,
-    index,
-    field,
-    value
-  ) => {
-    setAvailability((prev) => ({
-      ...prev,
-
-      [day]: prev[day].map(
-        (slot, i) =>
-          i === index
-            ? {
-                ...slot,
-                [field]: value,
-              }
-            : slot
-      ),
+  const updateSlot = (index, patch) => {
+    updateDay(selectedDay, currentSlots.map((slot, slotIndex) => {
+      if (slotIndex !== index) return slot;
+      const next = { ...slot, ...patch };
+      return {
+        ...next,
+        maxMeetingMinutes: Math.min(Number(next.maxMeetingMinutes || 60), Math.max(getDuration(next), 60)),
+      };
     }));
   };
 
-  const removeSlot = (
-    day,
-    index
-  ) => {
-    setAvailability((prev) => ({
-      ...prev,
-
-      [day]: prev[day].filter(
-        (_, i) => i !== index
-      ),
-    }));
+  const removeSlot = (index) => {
+    updateDay(selectedDay, currentSlots.filter((_, slotIndex) => slotIndex !== index));
   };
 
-  const clearDay = (day) => {
-    setAvailability((prev) => ({
-      ...prev,
-
-      [day]: [],
-    }));
+  const applyPreset = (preset) => {
+    updateDay(selectedDay, [{
+      start: preset.start,
+      end: preset.end,
+      maxMeetingMinutes: preset.maxMeetingMinutes,
+    }]);
   };
 
-  const clearAll = () => {
-    setAvailability(
-      EMPTY_AVAIL
-    );
-  };
-
-  const applyPreset = (
-    slots
-  ) => {
-    setAvailability((prev) => ({
-      ...prev,
-
-      [selectedDay]:
-        slots,
-    }));
-  };
-
-  const copyToAllDays = () => {
-
-    const source =
-      availability[
-        selectedDay
-      ];
-
-    if (
-      source.length === 0
-    )
-      return;
-
-    const updated = {};
-
-    DAYS.forEach((day) => {
-      updated[day] = [
-        ...source,
-      ];
+  const copyToWeekdays = () => {
+    if (!currentSlots.length) return;
+    setAvailability((prev) => {
+      const next = { ...prev };
+      ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].forEach((day) => {
+        next[day] = currentSlots.map((slot) => ({ ...slot }));
+      });
+      return next;
     });
-
-    setAvailability(updated);
   };
 
-  // ─────────────────────────────────────
-  // Validation
-  // ─────────────────────────────────────
-  const hasOverlap = (
-    slots
-  ) => {
-
-    const sorted = [
-      ...slots,
-    ].sort((a, b) =>
-      a.start.localeCompare(
-        b.start
-      )
-    );
-
-    for (
-      let i = 1;
-      i < sorted.length;
-      i++
-    ) {
-      if (
-        sorted[i].start <
-        sorted[i - 1].end
-      ) {
-        return true;
-      }
+  const handleSubmit = async () => {
+    if (hasErrors) return;
+    setLoading(true);
+    try {
+      await onSubmit(faculty.id, availability);
+    } finally {
+      setLoading(false);
     }
-
-    return false;
   };
 
-  const validateSlots = (
-    slots
-  ) => {
-
-    for (const slot of slots) {
-
-      if (
-        !slot.start ||
-        !slot.end
-      ) {
-        return "Please complete all time fields.";
-      }
-
-      if (
-        slot.start >=
-        slot.end
-      ) {
-        return "End time must be later than start time.";
-      }
-    }
-
-    if (
-      hasOverlap(slots)
-    ) {
-      return "Overlapping schedules detected.";
-    }
-
-    return null;
-  };
-
-  const currentDayError =
-    validateSlots(
-      availability[
-        selectedDay
-      ]
-    );
-
-  // ─────────────────────────────────────
-  // Utilities
-  // ─────────────────────────────────────
-  const formatTime = (
-    time
-  ) => {
-
-    if (!time)
-      return "--";
-
-    const [
-      hour,
-      minute,
-    ] = time.split(":");
-
-    const h =
-      parseInt(hour);
-
-    return `${h % 12 || 12}:${minute} ${
-      h >= 12
-        ? "PM"
-        : "AM"
-    }`;
-  };
-
-  const getDuration = (
-    start,
-    end
-  ) => {
-
-    if (
-      !start ||
-      !end
-    )
-      return "--";
-
-    const [sh, sm] =
-      start
-        .split(":")
-        .map(Number);
-
-    const [eh, em] =
-      end
-        .split(":")
-        .map(Number);
-
-    const mins =
-      eh * 60 +
-      em -
-      (sh * 60 + sm);
-
-    if (mins <= 0)
-      return "--";
-
-    const hrs =
-      Math.floor(
-        mins / 60
-      );
-
-    const remaining =
-      mins % 60;
-
-    if (remaining > 0) {
-      return `${hrs} hr ${remaining} min`;
-    }
-
-    return `${hrs} hr${
-      hrs > 1
-        ? "s"
-        : ""
-    }`;
-  };
-
-  // ─────────────────────────────────────
-  // Submit
-  // ─────────────────────────────────────
-  const handleSubmit =
-    async () => {
-
-      const hasErrors =
-        DAYS.some(
-          (day) =>
-            validateSlots(
-              availability[
-                day
-              ]
-            )
-        );
-
-      if (hasErrors)
-        return;
-
-      setLoading(true);
-
-      try {
-
-        await onSubmit(
-          faculty.id,
-          availability
-        );
-
-      } finally {
-
-        setLoading(false);
-      }
-    };
-
-  // ─────────────────────────────────────
-  // UI
-  // ─────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-
-      <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
-
-        {/* Header */}
-        <div className="border-b border-gray-100 px-6 py-5 flex items-center justify-between">
-
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">
-              Set Faculty Availability
-            </h2>
-
-            <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
-              <span>
-                {faculty.name}
-              </span>
-
-              <span>
-                •
-              </span>
-
-              <span>
-                {activeDays} active day(s)
-              </span>
-
-              <span>
-                •
-              </span>
-
-              <span>
-                {totalSlots} slot(s)
-              </span>
-            </div>
+            <h2 className="text-base font-bold text-gray-800">Set Availability</h2>
+            <p className="text-sm text-gray-500">{faculty.name}</p>
           </div>
-
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
-          >
+          <button onClick={onClose} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
             <X size={18} />
           </button>
         </div>
 
-        {/* Main */}
-        <div className="flex flex-1 overflow-hidden">
-
-          {/* Sidebar */}
-          <div className="w-[240px] border-r border-gray-100 bg-gray-50 p-4 overflow-y-auto">
-
-            <div className="flex items-center gap-2 mb-4">
-
-              <CalendarDays
-                size={16}
-                className="text-pup-maroon"
-              />
-
-              <h3 className="text-sm font-semibold text-gray-700">
-                Days
-              </h3>
-            </div>
-
-            <div className="space-y-2">
-
-              {DAYS.map(
-                (day) => {
-
-                  const active =
-                    selectedDay ===
-                    day;
-
-                  const hasSlots =
-                    availability[
-                      day
-                    ].length > 0;
-
-                  return (
-                    <button
-                      key={day}
-                      onClick={() =>
-                        setSelectedDay(
-                          day
-                        )
-                      }
-                      className={`w-full flex items-center justify-between px-3 py-3 rounded-xl border text-sm transition-all ${
-                        active
-                          ? "bg-pup-maroon text-white border-pup-maroon"
-                          : "bg-white border-gray-200 hover:border-pup-maroon/40"
-                      }`}
-                    >
-                      <span>
-                        {day}
-                      </span>
-
-                      {hasSlots && (
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${
-                          active
-                            ? "bg-white/20 text-white"
-                            : "bg-green-100 text-green-700"
-                        }`}>
-                          {
-                            availability[
-                              day
-                            ]
-                              .length
-                          }
-                        </span>
-                      )}
-                    </button>
-                  );
-                }
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="mt-6 space-y-2">
-
+        <div className="border-b border-gray-100 px-6 py-3">
+          <div className="flex flex-wrap gap-2">
+            {DAYS.map((day) => (
               <button
-                onClick={
-                  copyToAllDays
-                }
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 border border-gray-200 rounded-xl text-sm hover:bg-white transition-colors"
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  selectedDay === day
+                    ? "border-pup-maroon bg-pup-maroon text-white"
+                    : errorMap[day]
+                    ? "border-red-200 bg-red-50 text-red-600"
+                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
               >
-                <Copy size={14} />
-
-                Copy to All Days
+                {day.slice(0, 3)} ({availability[day].length})
               </button>
-
-              <button
-                onClick={
-                  clearAll
-                }
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 border border-red-200 text-red-500 rounded-xl text-sm hover:bg-red-50 transition-colors"
-              >
-                <RotateCcw size={14} />
-
-                Clear All
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
-
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-
-              <div>
-                <h3 className="text-lg font-bold text-gray-800">
-                  {selectedDay}
-                </h3>
-
-                <p className="text-sm text-gray-500 mt-1">
-                  Configure faculty availability
-                </p>
-              </div>
-
-              {availability[
-                selectedDay
-              ].length >
-                0 && (
-                <button
-                  onClick={() =>
-                    clearDay(
-                      selectedDay
-                    )
-                  }
-                  className="text-sm text-red-500 hover:text-red-600 font-medium"
-                >
-                  Clear Day
-                </button>
-              )}
-            </div>
-
-            {/* Presets */}
-            <div className="mb-6">
-
-              <div className="flex items-center gap-2 mb-3">
-
-                <Clock3
-                  size={15}
-                  className="text-pup-maroon"
-                />
-
-                <p className="text-sm font-semibold text-gray-700">
-                  Quick Presets
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-
-                {QUICK_PRESETS.map(
-                  (
-                    preset
-                  ) => (
-                    <button
-                      key={
-                        preset.label
-                      }
-                      onClick={() =>
-                        applyPreset(
-                          preset.slots
-                        )
-                      }
-                      className="px-3 py-2 rounded-xl border border-gray-200 text-sm hover:border-pup-maroon hover:text-pup-maroon hover:bg-pup-maroon/5 transition-colors"
-                    >
-                      {
-                        preset.label
-                      }
-                    </button>
-                  )
-                )}
-              </div>
-            </div>
-
-            {/* Error */}
-            {currentDayError && (
-              <div className="mb-5 flex items-center gap-2 px-4 py-3 rounded-2xl bg-red-50 border border-red-200 text-red-600 text-sm">
-                <AlertCircle size={16} />
-
-                {
-                  currentDayError
-                }
-              </div>
-            )}
-
-            {/* Slots */}
-            <div className="space-y-4">
-
-              {availability[
-                selectedDay
-              ].map(
-                (
-                  slot,
-                  index
-                ) => (
-                  <div
-                    key={index}
-                    className="border border-gray-200 rounded-2xl p-4 bg-white"
-                  >
-
-                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-
-                      {/* Start */}
-                      <div className="flex-1">
-
-                        <label className="text-xs font-medium text-gray-500 mb-1 block">
-                          Start Time
-                        </label>
-
-                        <input
-                          type="time"
-                          step="1800"
-                          value={
-                            slot.start ||
-                            ""
-                          }
-                          onChange={(
-                            e
-                          ) =>
-                            updateSlot(
-                              selectedDay,
-                              index,
-                              "start",
-                              e
-                                .target
-                                .value
-                            )
-                          }
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon"
-                        />
-                      </div>
-
-                      {/* End */}
-                      <div className="flex-1">
-
-                        <label className="text-xs font-medium text-gray-500 mb-1 block">
-                          End Time
-                        </label>
-
-                        <input
-                          type="time"
-                          step="1800"
-                          value={
-                            slot.end ||
-                            ""
-                          }
-                          onChange={(
-                            e
-                          ) =>
-                            updateSlot(
-                              selectedDay,
-                              index,
-                              "end",
-                              e
-                                .target
-                                .value
-                            )
-                          }
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon"
-                        />
-                      </div>
-
-                      {/* Duration */}
-                      <div className="lg:w-[150px]">
-
-                        <label className="text-xs font-medium text-gray-500 mb-1 block">
-                          Duration
-                        </label>
-
-                        <div className="h-[50px] flex items-center px-4 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700">
-                          {getDuration(
-                            slot.start,
-                            slot.end
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Remove */}
-                      <button
-                        onClick={() =>
-                          removeSlot(
-                            selectedDay,
-                            index
-                          )
-                        }
-                        className="h-[50px] w-[50px] flex items-center justify-center rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors mt-auto"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-
-                    {/* Preview */}
-                    <div className="mt-3 text-sm text-gray-500">
-                      {formatTime(
-                        slot.start
-                      )}{" "}
-                      —{" "}
-                      {formatTime(
-                        slot.end
-                      )}
-                    </div>
-                  </div>
-                )
-              )}
-
-              {/* Empty */}
-              {availability[
-                selectedDay
-              ].length ===
-                0 && (
-                <div className="border border-dashed border-gray-200 rounded-2xl py-10 px-6 text-center">
-
-                  <Clock3
-                    size={28}
-                    className="mx-auto text-gray-300 mb-3"
-                  />
-
-                  <h4 className="text-sm font-semibold text-gray-600">
-                    No schedules added
-                  </h4>
-
-                  <p className="text-sm text-gray-400 mt-1">
-                    Add faculty availability time slots.
-                  </p>
-                </div>
-              )}
-
-              {/* Add */}
-              <button
-                onClick={() =>
-                  addSlot(
-                    selectedDay
-                  )
-                }
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-pup-maroon/30 rounded-2xl text-pup-maroon hover:bg-pup-maroon/5 transition-colors"
-              >
-                <Plus size={16} />
-
-                Add Time Slot
-              </button>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-between bg-white">
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="text-base font-bold text-gray-800">{selectedDay}</h3>
+              <p className="text-sm text-gray-500">Add the times when this faculty member can teach.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() => applyPreset(preset)}
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  {preset.label}
+                </button>
+              ))}
+              <button
+                onClick={copyToWeekdays}
+                disabled={!currentSlots.length}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <Copy size={14} />
+                Copy to Weekdays
+              </button>
+            </div>
+          </div>
 
-          <div className="text-sm text-gray-500">
+          {selectedAssigned.length > 0 && (
+            <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">Assigned classes</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedAssigned.map((schedule, index) => (
+                  <span key={`${schedule.subjectCode}-${index}`} className="rounded-lg bg-white px-3 py-1.5 text-xs text-blue-700">
+                    {schedule.subjectCode} {formatTime(schedule.start)} - {formatTime(schedule.end)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
-            {totalSlots > 0 ? (
-              <span>
-                Ready to save availability
-              </span>
+          {currentError && (
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              <AlertCircle size={16} />
+              {currentError}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {currentSlots.map((slot, index) => {
+              const duration = Math.max(getDuration(slot), 0);
+
+              return (
+                <div key={`${slot.start}-${index}`} className="rounded-xl border border-gray-200 p-4">
+                  <div className="grid gap-3 lg:grid-cols-[1fr_1fr_180px_44px] lg:items-end">
+                    <TimeField label="Start Time" value={slot.start} onChange={(value) => updateSlot(index, { start: value })} />
+                    <TimeField label="End Time" value={slot.end} onChange={(value) => updateSlot(index, { end: value })} />
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Max Class Length</label>
+                      <select
+                        value={slot.maxMeetingMinutes}
+                        onChange={(event) => updateSlot(index, { maxMeetingMinutes: Number(event.target.value) })}
+                        className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
+                      >
+                        {DURATION_OPTIONS.filter((option) => option.value <= Math.max(duration, 60)).map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      onClick={() => removeSlot(index)}
+                      className="flex h-11 w-11 items-center justify-center rounded-lg border border-red-200 text-red-500 hover:bg-red-50"
+                      title="Remove time block"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    {formatTime(slot.start)} - {formatTime(slot.end)} ({formatDuration(duration)})
+                  </p>
+                </div>
+              );
+            })}
+
+            {!currentSlots.length && (
+              <div className="rounded-xl border border-dashed border-gray-200 px-6 py-8 text-center">
+                <p className="text-sm font-semibold text-gray-600">No availability for {selectedDay}</p>
+                <p className="mt-1 text-sm text-gray-400">Add a time block or use a preset.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => addSlot(120)}
+              className="flex items-center gap-2 rounded-lg border border-pup-maroon/30 px-4 py-2 text-sm font-medium text-pup-maroon hover:bg-pup-maroon/5"
+            >
+              <Plus size={15} />
+              Add 2-Hour Block
+            </button>
+            <button
+              onClick={() => addSlot(300)}
+              className="flex items-center gap-2 rounded-lg border border-pup-maroon/30 px-4 py-2 text-sm font-medium text-pup-maroon hover:bg-pup-maroon/5"
+            >
+              <Plus size={15} />
+              Add 5-Hour Block
+            </button>
+            <button
+              onClick={() => updateDay(selectedDay, [])}
+              disabled={!currentSlots.length}
+              className="rounded-lg border border-red-200 px-4 py-2 text-sm text-red-500 hover:bg-red-50 disabled:opacity-50"
+            >
+              Clear Day
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-gray-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            {hasErrors ? (
+              <>
+                <AlertCircle size={16} className="text-red-500" />
+                <span className="text-red-600">Fix errors before saving.</span>
+              </>
             ) : (
-              <span>
-                No schedules added
-              </span>
+              <>
+                <CheckCircle2 size={16} className="text-green-600" />
+                <span className="text-gray-500">{totalSlots} availability block(s) ready.</span>
+              </>
             )}
           </div>
 
           <div className="flex items-center gap-3">
-
-            <button
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium"
-            >
+            <button onClick={onClose} className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
               Cancel
             </button>
-
             <button
-              onClick={
-                handleSubmit
-              }
-              disabled={
-                loading ||
-                totalSlots === 0
-              }
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pup-maroon text-white text-sm font-medium hover:bg-pup-maroon-dark transition-colors disabled:opacity-60"
+              onClick={handleSubmit}
+              disabled={loading || totalSlots === 0 || hasErrors}
+              className="flex items-center gap-2 rounded-lg bg-pup-maroon px-5 py-2.5 text-sm font-medium text-white hover:bg-pup-maroon-dark disabled:opacity-60"
             >
-              {loading && (
-                <Loader2
-                  size={15}
-                  className="animate-spin"
-                />
-              )}
-
-              {loading
-                ? "Saving..."
-                : "Save Availability"}
+              {loading && <Loader2 size={15} className="animate-spin" />}
+              {loading ? "Saving..." : "Save Availability"}
             </button>
           </div>
         </div>
@@ -894,5 +407,20 @@ const SetAvailabilityModal = ({
     </div>
   );
 };
+
+const TimeField = ({ label, value, onChange }) => (
+  <div>
+    <label className="mb-1 block text-xs font-medium text-gray-500">{label}</label>
+    <input
+      type="time"
+      step="1800"
+      min={SCHOOL_START}
+      max={SCHOOL_END}
+      value={value || ""}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
+    />
+  </div>
+);
 
 export default SetAvailabilityModal;

@@ -11,7 +11,7 @@ const navItems = [
   { label: "Dashboard",           path: "/dashboard",        icon: LayoutDashboard },
   { label: "Faculty Members",     path: "/faculty",          icon: Users },
   { label: "Courses",             path: "/courses",          icon: GraduationCap },
-  { label: "Subjects",            path: "/subjects",         icon: BookMarked },
+  { label: "Curriculum",          path: "/curriculum",       icon: BookMarked },
   { label: "Rooms",               path: "/rooms",            icon: DoorOpen },
   { label: "Schedule Assignment", path: "/schedules",        icon: CalendarDays },
   { label: "Faculty Schedule",    path: "/faculty-schedule", icon: CalendarCheck },
