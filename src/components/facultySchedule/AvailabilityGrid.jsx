@@ -72,7 +72,7 @@ const AvailabilityGrid = ({ availability, assignedSchedules }) => {
                 </div>
               ) : (
                 slots.map((slot, index) => (
-                  <div key={`${slot.start}-${index}`} className="rounded-lg border border-green-100 bg-green-50 px-2 py-2">
+                  <div key={`slot-${index}`} className="rounded-lg border border-green-100 bg-green-50 px-2 py-2">
                     <p className="text-xs font-bold text-green-700">{slot.start}-{slot.end}</p>
                     <p className="mt-0.5 text-[11px] text-green-700/70">
                       Max class {formatDuration(slot.maxMeetingMinutes)}
@@ -83,7 +83,7 @@ const AvailabilityGrid = ({ availability, assignedSchedules }) => {
               )}
 
               {assigned.map((schedule, index) => (
-                <div key={`${schedule.subjectCode}-${index}`} className="rounded-lg border border-pup-maroon/20 bg-pup-maroon/10 px-2 py-2">
+                <div key={`assigned-${index}`} className="rounded-lg border border-pup-maroon/20 bg-pup-maroon/10 px-2 py-2">
                   <p className="text-xs font-bold text-pup-maroon">{schedule.subjectCode}</p>
                   <p className="text-[11px] text-pup-maroon/70">{schedule.startTime}-{schedule.endTime}</p>
                   <p className="text-[11px] text-pup-maroon/70">{schedule.course} {schedule.section} - {schedule.room}</p>

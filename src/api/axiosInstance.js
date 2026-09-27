@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL, // from .env file
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api",
   withCredentials: true, // sends HttpOnly refresh token cookie automatically
   headers: {
     "Content-Type": "application/json",
@@ -29,14 +29,18 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const authEndpoints = ["/auth/login", "/auth/refresh", "/auth/logout", "/auth/me"];
+    const isAuthEndpoint = authEndpoints.some((endpoint) =>
+      originalRequest?.url?.endsWith(endpoint)
+    );
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       try {
         // Ask backend to issue a new access token using the HttpOnly refresh cookie
         const res = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
+          `${axiosInstance.defaults.baseURL}/auth/refresh`,
           {},
           { withCredentials: true }
         );
@@ -44,6 +48,7 @@ axiosInstance.interceptors.response.use(
         const newToken = res.data.accessToken;
         window.__cosmos_access_token__ = newToken;
 
+        originalRequest.headers = originalRequest.headers || {};
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return axiosInstance(originalRequest);
       } catch (refreshError) {

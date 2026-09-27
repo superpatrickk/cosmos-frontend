@@ -13,10 +13,22 @@ const ScheduleEditModal = ({
 
   useEffect(() => {
     if (open && data) {
-      setForm({ ...data });
+      const normalized = {
+        ...data,
+        faculty: data.faculty ?? data.facultyName ?? "",
+        room: data.room ?? data.roomId ?? "",
+        course: data.course ?? data.courseCode ?? "",
+        status: data.status ?? "Active",
+      };
+      setForm(normalized);
       setErrors({});
     }
   }, [open, data]);
+
+  useEffect(() => {
+    console.log("ScheduleEditModal mounted");
+    return () => console.log("ScheduleEditModal unmounted");
+  }, []);
 
   if (!open) return null;
 

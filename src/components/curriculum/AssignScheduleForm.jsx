@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -14,7 +14,10 @@ import {
 } from "lucide-react";
 import ConfirmDialog from "../common/ConfirmDialog"; // Assuming this path is correct
 import AssignPreviewModal from "./AssignPreviewModal"; // Assuming this path is correct
-import { loadCurricula, normalizeSchedulingCurriculum } from "../../data/curriculumStore"; // Assuming this path is correct
+import { normalizeSchedulingCurriculum } from "../../data/curriculumStore"; // Assuming this path is correct
+import { curriculumService } from "../../api/services/curriculumService";
+import { scheduleService } from "../../api/services/scheduleService";
+import { roomService } from "../../api/services/roomService";
 
 // --- Mock Data (Keep as is) ---
 const MOCK_PROGRAMS = ["BSIT", "BSCS", "BSEE", "BSBA", "BSMath"];
@@ -24,14 +27,7 @@ const MOCK_AY = ["2024-2025", "2025-2026", "2026-2027"];
 const MOCK_SECTIONS = ["A", "B", "C", "D"];
 const MOCK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const MOCK_ROOMS = [
-  { id: "RM001", name: "Conference Room A", type: "Lecture", capacity: 50 },
-  { id: "RM002", name: "Lecture Hall 1", type: "Lecture", capacity: 100 },
-  { id: "RM003", name: "Lab Room 101", type: "Laboratory", capacity: 30 },
-  { id: "RM004", name: "Networking Lab", type: "Laboratory", capacity: 32 }, // Specific type for labs
-  { id: "RM005", name: "Auditorium", type: "Lecture", capacity: 200 },
-  { id: "RM006", name: "Seminar Room 1", type: "Lecture", capacity: 40 },
-];
+// Rooms are fetched from backend via roomService
 
 const MOCK_FACULTY = [
   {
@@ -88,17 +84,89 @@ const MOCK_FACULTY = [
   },
 ];
 
-const EXISTING_SCHEDULES = [
-  { faculty: "Dr. Maria Santos", room: "RM002", section: "Section B", day: "Monday", timeSlot: "09:00-11:00" },
-  { faculty: "Prof. Juan Reyes", room: "RM003", section: "Section A", day: "Wednesday", timeSlot: "09:00-11:00" },
-  { faculty: "Dr. Ana Cruz", room: "RM006", section: "Section C", day: "Tuesday", timeSlot: "10:00-12:00" },
-];
+// Existing schedules will be fetched from backend via scheduleService
 
 const EMPTY_ASSIGNMENT = {
   faculty: "",
   day: "",
   timeSlot: "",
   room: "",
+};
+
+const normalizeSection = (section) =>
+  String(section || "").replace(/^section\s+/i, "").trim().toUpperCase();
+
+// Rooms fetched from backend
+const useRooms = () => {
+  const [rooms, setRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
+  const [roomsError, setRoomsError] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchRooms = async () => {
+      setRoomsLoading(true);
+      setRoomsError(null);
+      try {
+        const res = await roomService.getAll();
+        const data = res?.data ?? res;
+        if (!mounted) return;
+        setRooms(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load rooms:", err);
+        if (mounted) setRoomsError(err?.message || "Failed to load rooms");
+      } finally {
+        if (mounted) setRoomsLoading(false);
+      }
+    };
+    fetchRooms();
+    return () => { mounted = false; };
+  }, []);
+
+  return { rooms, roomsLoading, roomsError };
+};
+
+const useExistingSchedules = (filters) => {
+  const [existing, setExisting] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const hasFilters = Boolean(filters.program || filters.yearLevel || filters.semester || filters.section);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchExisting = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = {};
+        if (filters.program) params.program = filters.program;
+        if (filters.yearLevel) params.yearLevel = filters.yearLevel;
+        if (filters.semester) params.semester = filters.semester;
+        if (filters.section) params.section = filters.section;
+        if (filters.academicYear) params.academicYear = filters.academicYear;
+        const res = await scheduleService.getAll(params);
+        const data = res?.data ?? res;
+        if (!mounted) return;
+        setExisting(Array.isArray(data) ? data.map((schedule) => ({
+          ...schedule,
+          faculty: schedule.facultyName || schedule.faculty || "",
+          room: String(schedule.roomId ?? schedule.room ?? ""),
+          section: normalizeSection(schedule.section),
+          timeSlot: schedule.timeSlot || `${schedule.startTime}-${schedule.endTime}`,
+        })) : []);
+      } catch (err) {
+        console.error("Failed to load existing schedules:", err);
+        if (mounted) setError(err?.message || "Failed to load schedules");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    // fetch when key filters are present
+    if (hasFilters) fetchExisting();
+    return () => { mounted = false; };
+  }, [filters.program, filters.yearLevel, filters.semester, filters.section, filters.academicYear, hasFilters]);
+
+  return { existing: hasFilters ? existing : [], loading, error };
 };
 
 // --- Utility Functions (Keep as is) ---
@@ -181,11 +249,12 @@ const buildConflictMap = (curriculum, assignments, filters) => {
   };
 
   rows.forEach(({ subject, assignment }, index) => {
-    const room = MOCK_ROOMS.find((item) => item.id === assignment.room);
+  const room = (filters.roomsList || []).find((item) => String(item.id) === String(assignment.room));
+  const existingSchedules = filters.existingSchedules || [];
     const subjectRoomType = getRoomType(subject);
 
-    // 1. Room Type Mismatch
-    if (room && room.type !== subjectRoomType) {
+    // 1. Room Type Mismatch — skip if room has no type (backend removed `type`)
+    if (room && room.type && room.type !== subjectRoomType) {
       addConflict(subject.id, `Room ${room.name} (${room.type}) does not match subject requirement (${subjectRoomType}).`);
     }
 
@@ -196,7 +265,11 @@ const buildConflictMap = (curriculum, assignments, filters) => {
     }
 
     // 3. Conflicts with Existing Schedules
-    EXISTING_SCHEDULES.forEach((schedule) => {
+    existingSchedules.forEach((schedule) => {
+      if (
+        (filters.academicYear && schedule.academicYear !== filters.academicYear) ||
+        (filters.semester && schedule.semester !== filters.semester)
+      ) return;
       if (schedule.day !== assignment.day || !slotsOverlap(schedule.timeSlot, assignment.timeSlot)) return;
       if (assignment.faculty && schedule.faculty === assignment.faculty) {
         addConflict(subject.id, `Faculty ${assignment.faculty} is already assigned at this time in another schedule.`);
@@ -204,7 +277,12 @@ const buildConflictMap = (curriculum, assignments, filters) => {
       if (assignment.room && schedule.room === assignment.room) {
         addConflict(subject.id, `Room ${assignment.room} is already used at this time in another schedule.`);
       }
-      if (filters.section && schedule.section === filters.section) {
+      if (
+        filters.section &&
+        schedule.courseCode === filters.program &&
+        schedule.yearLevel === filters.yearLevel &&
+        schedule.section === normalizeSection(filters.section)
+      ) {
         addConflict(subject.id, `Section ${filters.section} already has a class at this time in another schedule.`);
       }
     });
@@ -254,9 +332,41 @@ const AssignScheduleForm = () => {
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [savedMode, setSavedMode] = useState("");
   const [subjectSearch, setSubjectSearch] = useState("");
-  const [availableCurricula] = useState(() =>
-    loadCurricula().map(normalizeSchedulingCurriculum)
-  );
+  const [availableCurricula, setAvailableCurricula] = useState([]);
+  const [availLoading, setAvailLoading] = useState(false);
+  const [availError, setAvailError] = useState(null);
+  const { rooms, roomsLoading, roomsError } = useRooms();
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchAvailable = async () => {
+      if (!filters.program || !filters.yearLevel || !filters.semester) {
+        setAvailableCurricula([]);
+        return;
+      }
+      try {
+        setAvailLoading(true);
+        setAvailError(null);
+        const res = await curriculumService.getAll({ program: filters.program, yearLevel: filters.yearLevel, semester: filters.semester });
+        const data = res?.data ?? res;
+        if (!mounted) return;
+        if (Array.isArray(data)) {
+          setAvailableCurricula(data.map(normalizeSchedulingCurriculum));
+        } else {
+          setAvailableCurricula([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch available curricula:", err);
+        if (mounted) {
+          setAvailableCurricula([]);
+          setAvailError(err?.message || "Failed to load curricula");
+        }
+      }
+      finally { if (mounted) setAvailLoading(false); }
+    };
+    fetchAvailable();
+    return () => { mounted = false; };
+  }, [filters.program, filters.yearLevel, filters.semester]);
 
   const curriculumOptions = useMemo(() =>
     availableCurricula.filter((item) =>
@@ -266,9 +376,11 @@ const AssignScheduleForm = () => {
     ), [availableCurricula, filters.program, filters.yearLevel, filters.semester]
   );
 
+  const { existing: existingSchedules, loading: existingLoading, error: existingError } = useExistingSchedules(filters);
+
   const conflictMap = useMemo(
-    () => buildConflictMap(curriculum, assignments, filters),
-    [curriculum, assignments, filters]
+    () => buildConflictMap(curriculum, assignments, { ...filters, roomsList: rooms, existingSchedules }),
+    [curriculum, assignments, filters, rooms, existingSchedules]
   );
 
   const conflictCount = Object.values(conflictMap).reduce((sum, messages) => sum + messages.length, 0);
@@ -382,7 +494,7 @@ const AssignScheduleForm = () => {
       const draftAssignment = { ...assignment, timeSlot: slot };
       const draftAssignmentsWithCurrent = { ...assignments, [subject.id]: draftAssignment };
 
-      const subjectConflicts = buildConflictMap(curriculum, draftAssignmentsWithCurrent, filters)[subject.id] || [];
+      const subjectConflicts = buildConflictMap(curriculum, draftAssignmentsWithCurrent, { ...filters, roomsList: rooms, existingSchedules })[subject.id] || [];
 
       // Check if any conflict message is relevant to this subject's assignment (Faculty, Section, Room)
       const hasConflict = subjectConflicts.some(message =>
@@ -395,9 +507,9 @@ const AssignScheduleForm = () => {
   const getRoomsForSubject = (subject, assignment) => {
     const subjectRoomType = getRoomType(subject);
 
-    return MOCK_ROOMS.filter((room) => {
-      // First, check if room type matches subject requirement
-      if (room.type !== subjectRoomType) return false;
+    return rooms.filter((room) => {
+      // First, check if room type matches subject requirement — if room has no type, allow it
+      if (room.type && room.type !== subjectRoomType) return false;
 
       // If day and time are not selected yet, just show rooms of correct type
       if (!assignment.day || !assignment.timeSlot) return true;
@@ -405,7 +517,7 @@ const AssignScheduleForm = () => {
       // If day and time are selected, check for room availability conflicts
       const draftAssignment = { ...assignment, room: room.id };
       const draftAssignmentsWithCurrent = { ...assignments, [subject.id]: draftAssignment };
-      const subjectConflicts = buildConflictMap(curriculum, draftAssignmentsWithCurrent, filters)[subject.id] || [];
+      const subjectConflicts = buildConflictMap(curriculum, draftAssignmentsWithCurrent, { ...filters, roomsList: rooms, existingSchedules })[subject.id] || [];
 
       // Check if any conflict message is related to the room for this subject
       const hasRoomConflict = subjectConflicts.some(message => message.includes("Room"));
@@ -434,13 +546,13 @@ const AssignScheduleForm = () => {
           const slots = generateSlotsFromRanges(facultyAvailabilityRanges, duration);
 
           for (const timeSlot of slots) {
-            const rooms = MOCK_ROOMS.filter((room) => room.type === getRoomType(subject));
-            for (const room of rooms) {
+            const eligibleRooms = rooms.filter((room) => !room.type || room.type === getRoomType(subject));
+            for (const room of eligibleRooms) {
               const draftAssignment = { faculty: faculty.name, day, timeSlot, room: room.id };
               const draft = { ...assignments, ...nextAssignments, [subject.id]: draftAssignment };
 
               // Check for conflicts for this specific assignment
-              const conflictsForThisSubject = buildConflictMap(curriculum, draft, filters)[subject.id] || [];
+              const conflictsForThisSubject = buildConflictMap(curriculum, draft, { ...filters, roomsList: rooms, existingSchedules })[subject.id] || [];
               if (conflictsForThisSubject.length === 0) {
                 nextAssignments[subject.id] = draftAssignment;
                 assignedSuccessfully = true;
@@ -494,10 +606,15 @@ const AssignScheduleForm = () => {
         status: mode, // 'draft' or 'published'
       }));
       console.info("Schedule payload ready for backend:", payload);
-      // Simulate saving data
-      await new Promise((resolve) => setTimeout(resolve, 900));
-      setSavedMode(mode);
-      alert(`Schedule ${mode}d successfully!`); // Feedback to user
+      // Send to backend
+      try {
+        await curriculumService.saveSchedules(payload);
+        setSavedMode(mode);
+        alert(`Schedule ${mode}d successfully!`);
+      } catch (err) {
+        console.error("Failed to save schedule to backend:", err);
+        alert("Failed to save schedule. See console for details.");
+      }
     } finally {
       setSaving(false);
     }
@@ -541,7 +658,14 @@ const AssignScheduleForm = () => {
             placeholder={curriculumOptions.length ? "Select version" : "No match"}
             disabled={!filters.program || !filters.yearLevel || !filters.semester} // Enable only when program, year, sem are set
           />
+          {availLoading && <div className="text-xs text-gray-400">Loading curricula...</div>}
+          {availError && <div className="text-xs text-red-600">{availError}</div>}
         </div>
+        {(roomsLoading || roomsError) && (
+          <p className={`mt-2 text-xs ${roomsError ? "text-red-600" : "text-gray-400"}`}>
+            {roomsError || "Loading available rooms..."}
+          </p>
+        )}
 
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -574,7 +698,7 @@ const AssignScheduleForm = () => {
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
@@ -584,6 +708,8 @@ const AssignScheduleForm = () => {
                     className="w-52 rounded-xl border border-gray-200 py-2 pl-9 pr-3 text-sm focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
                   />
                 </div>
+                {existingLoading && <div className="text-xs text-gray-400">Loading existing schedules...</div>}
+                {existingError && <div className="text-xs text-red-600">{existingError}</div>}
                 <button
                   onClick={handleAutoSchedule}
                   className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors"

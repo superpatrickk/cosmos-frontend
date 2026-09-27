@@ -1,31 +1,44 @@
 import axiosInstance from "../axiosInstance";
 
+// Helper to try plural or singular endpoints for compatibility with different backends
+const tryBoth = async (method, pathSingular, pathPlural, ...args) => {
+  try {
+    return await axiosInstance[method](pathSingular, ...args);
+  } catch (err) {
+    // if not found or server uses plural, try the plural path
+    try {
+      return await axiosInstance[method](pathPlural, ...args);
+    } catch (err2) {
+      // rethrow original for better trace
+      throw err2 || err;
+    }
+  }
+};
+
 export const curriculumService = {
-  getAll: (params) =>
-    axiosInstance.get("/curriculum", { params }),
+  getAll: (params) => tryBoth("get", "/curriculum", "/curricula", { params }),
 
-  getById: (id) =>
-    axiosInstance.get(`/curriculum/${id}`),
+  getById: (id) => tryBoth("get", `/curriculum/${id}`, `/curricula/${id}`),
 
-  create: (data) =>
-    axiosInstance.post("/curriculum", data),
+  create: (data) => tryBoth("post", "/curriculum", "/curricula", data),
 
-  update: (id, data) =>
-    axiosInstance.put(`/curriculum/${id}`, data),
+  update: (id, data) => tryBoth("put", `/curriculum/${id}`, `/curricula/${id}`, data),
 
-  delete: (id) =>
-    axiosInstance.delete(`/curriculum/${id}`),
+  delete: (id) => tryBoth("delete", `/curriculum/${id}`, `/curricula/${id}`),
 
-  getLatest: (program, yearLevel, semester) =>
-    axiosInstance.get("/curriculum/latest", {
-      params: { program, yearLevel, semester },
-    }),
+  getLatest: (program, yearLevel, semester) => tryBoth(
+    "get",
+    "/curriculum/latest",
+    "/curricula/latest",
+    { params: { program, yearLevel, semester } }
+  ),
 
-  getAvailableFaculty: (day, startTime, endTime) =>
-    axiosInstance.get("/curriculum/available-faculty", {
-      params: { day, startTime, endTime },
-    }),
+  getAvailableFaculty: (day, startTime, endTime) => tryBoth(
+    "get",
+    "/curriculum/available-faculty",
+    "/curricula/available-faculty",
+    { params: { day, startTime, endTime } }
+  ),
 
-  saveSchedules: (data) =>
-    axiosInstance.post("/curriculum/save-schedules", data),
+  saveSchedules: (data) => tryBoth("post", "/curriculum/save-schedules", "/curricula/save-schedules", data),
 };

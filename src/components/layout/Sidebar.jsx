@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
-  LayoutDashboard, Users, GraduationCap, BookMarked,
+  LayoutDashboard, Users, GraduationCap, BookMarked, BookOpen,
   DoorOpen, CalendarDays, CalendarCheck, Printer,
   LogOut, Menu, X
 } from "lucide-react";
@@ -12,6 +12,7 @@ const navItems = [
   { label: "Faculty Members",     path: "/faculty",          icon: Users },
   { label: "Courses",             path: "/courses",          icon: GraduationCap },
   { label: "Curriculum",          path: "/curriculum",       icon: BookMarked },
+  { label: "Subjects",            path: "/subjects",         icon: BookOpen },
   { label: "Rooms",               path: "/rooms",            icon: DoorOpen },
   { label: "Schedule Assignment", path: "/schedules",        icon: CalendarDays },
   { label: "Faculty Schedule",    path: "/faculty-schedule", icon: CalendarCheck },

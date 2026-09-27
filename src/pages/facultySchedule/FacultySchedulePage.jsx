@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import TopBar from "../../components/layout/TopBar";
 import AvailabilityGrid from "../../components/facultySchedule/AvailabilityGrid";
 import SendScheduleModal from "../../components/facultySchedule/SendScheduleModal";
 import SetAvailabilityModal from "../../components/facultySchedule/SetAvailabilityModal";
+import { emailService } from "../../api/services/emailService";
+import { facultyService } from "../../api/services/facultyService";
+import { scheduleService } from "../../api/services/scheduleService";
 import {
   CalendarCheck,
   CheckCircle2,
@@ -13,91 +16,8 @@ import {
   Users,
 } from "lucide-react";
 
-const MOCK_FACULTY_SCHEDULES = [
-  {
-    id: "F001",
-    name: "Dr. Maria Santos",
-    email: "maria.santos@pup.edu.ph",
-    department: "Computer Science",
-    status: "Active",
-    lastEmailSent: "2025-04-20T10:30:00",
-    availability: {
-      Monday: [{ start: "07:00", end: "12:00", maxMeetingMinutes: 300, note: "Preferred for lab blocks" }],
-      Tuesday: [{ start: "08:00", end: "12:00", maxMeetingMinutes: 240 }],
-      Wednesday: [
-        { start: "07:00", end: "12:00", maxMeetingMinutes: 300 },
-        { start: "13:00", end: "17:00", maxMeetingMinutes: 240 },
-      ],
-      Thursday: [{ start: "10:00", end: "16:00", maxMeetingMinutes: 300 }],
-      Friday: [{ start: "08:00", end: "12:00", maxMeetingMinutes: 240 }],
-      Saturday: [],
-    },
-    assignedSchedules: [
-      { subjectCode: "COMP 019", day: "Monday", startTime: "07:00", endTime: "12:00", room: "RM003", course: "BSIT", section: "3A" },
-      { subjectCode: "INTE 301", day: "Thursday", startTime: "10:00", endTime: "13:00", room: "RM002", course: "BSIT", section: "3B" },
-      { subjectCode: "GEED 005", day: "Friday", startTime: "08:00", endTime: "11:00", room: "RM006", course: "BSCS", section: "2A" },
-    ],
-  },
-  {
-    id: "F002",
-    name: "Prof. Juan Reyes",
-    email: "juan.reyes@pup.edu.ph",
-    department: "Engineering",
-    status: "Active",
-    lastEmailSent: null,
-    availability: {
-      Monday: [{ start: "10:00", end: "18:00", maxMeetingMinutes: 300 }],
-      Tuesday: [{ start: "08:00", end: "18:00", maxMeetingMinutes: 300 }],
-      Wednesday: [],
-      Thursday: [{ start: "08:00", end: "18:00", maxMeetingMinutes: 300 }],
-      Friday: [{ start: "10:00", end: "16:00", maxMeetingMinutes: 240 }],
-      Saturday: [],
-    },
-    assignedSchedules: [
-      { subjectCode: "ELEC IT-F3", day: "Tuesday", startTime: "13:00", endTime: "18:00", room: "RM004", course: "BSIT", section: "3A" },
-    ],
-  },
-  {
-    id: "F003",
-    name: "Dr. Ana Cruz",
-    email: "ana.cruz@pup.edu.ph",
-    department: "Mathematics",
-    status: "Active",
-    lastEmailSent: "2025-04-18T09:00:00",
-    availability: {
-      Monday: [{ start: "08:00", end: "12:00", maxMeetingMinutes: 240 }],
-      Tuesday: [{ start: "08:00", end: "18:00", maxMeetingMinutes: 300 }],
-      Wednesday: [{ start: "10:00", end: "14:00", maxMeetingMinutes: 240 }],
-      Thursday: [{ start: "08:00", end: "12:00", maxMeetingMinutes: 240 }],
-      Friday: [{ start: "08:00", end: "16:00", maxMeetingMinutes: 300 }],
-      Saturday: [],
-    },
-    assignedSchedules: [
-      { subjectCode: "MATH 201", day: "Monday", startTime: "08:00", endTime: "11:00", room: "RM003", course: "BSCS", section: "2A" },
-    ],
-  },
-  {
-    id: "F004",
-    name: "Prof. Carlos Garcia",
-    email: "carlos.garcia@pup.edu.ph",
-    department: "Business",
-    status: "On Leave",
-    lastEmailSent: null,
-    availability: {
-      Monday: [],
-      Tuesday: [],
-      Wednesday: [{ start: "09:00", end: "11:00", maxMeetingMinutes: 120 }],
-      Thursday: [],
-      Friday: [],
-      Saturday: [],
-    },
-    assignedSchedules: [
-      { subjectCode: "BA105", day: "Wednesday", startTime: "09:00", endTime: "11:00", room: "RM001", course: "BSBA", section: "A" },
-    ],
-  },
-];
-
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const EMPTY_WEEK = Object.fromEntries(DAYS.map((day) => [day, []]));
 
 const normalizeTime = (time) => {
   if (!time) return "";
@@ -143,13 +63,72 @@ const formatDuration = (minutes) => {
 };
 
 const FacultySchedulePage = () => {
-  const [facultyList, setFacultyList] = useState(MOCK_FACULTY_SCHEDULES);
-  const [loading] = useState(false);
-  const [error] = useState(null);
+  const [facultyList, setFacultyList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [sendModal, setSendModal] = useState({ open: false, faculty: null, mode: "single" });
   const [availModal, setAvailModal] = useState({ open: false, faculty: null });
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    const fetchFaculty = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [facultyRes, scheduleRes] = await Promise.all([
+          facultyService.getAll({ search }),
+          scheduleService.getAll(),
+        ]);
+
+        const members = Array.isArray(facultyRes?.data) ? facultyRes.data : [];
+        const schedules = Array.isArray(scheduleRes?.data) ? scheduleRes.data : [];
+
+        const facultyMap = members.map((faculty) => ({
+          id: faculty.id,
+          name: faculty.name,
+          email: faculty.email,
+          department: faculty.department,
+          status: faculty.status,
+          lastEmailSent: null,
+          availability: { ...EMPTY_WEEK },
+          assignedSchedules: [],
+        }));
+
+        const schedulesByFaculty = schedules.reduce((map, schedule) => {
+          const facultyKey = String(schedule.facultyName || schedule.faculty || "");
+          if (!facultyKey) return map;
+          if (!map[facultyKey]) {
+            map[facultyKey] = [];
+          }
+          map[facultyKey].push({
+            subjectCode: schedule.subjectCode,
+            subjectName: schedule.subjectName,
+            day: schedule.day,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+            room: schedule.roomName || schedule.room || "",
+            course: schedule.courseCode || schedule.course || "",
+            section: schedule.section || "",
+          });
+          return map;
+        }, {});
+
+        setFacultyList(
+          facultyMap.map((faculty) => ({
+            ...faculty,
+            assignedSchedules: schedulesByFaculty[faculty.name] || [],
+          }))
+        );
+      } catch (err) {
+        setError("Failed to load faculty schedules.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFaculty();
+  }, [search]);
 
   const filtered = useMemo(() =>
     facultyList.filter((faculty) =>
@@ -160,9 +139,9 @@ const FacultySchedulePage = () => {
     ), [facultyList, search]
   );
 
-  const totalAssigned = facultyList.reduce((sum, faculty) => sum + faculty.assignedSchedules.length, 0);
+  const totalAssigned = facultyList.reduce((sum, faculty) => sum + (faculty.assignedSchedules?.length || 0), 0);
   const emailSentCount = facultyList.filter((faculty) => faculty.lastEmailSent).length;
-  const weeklyCapacity = facultyList.reduce((sum, faculty) => sum + getWeeklyCapacityMinutes(faculty.availability), 0);
+  const weeklyCapacity = facultyList.reduce((sum, faculty) => sum + getWeeklyCapacityMinutes(faculty.availability || EMPTY_WEEK), 0);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -172,7 +151,7 @@ const FacultySchedulePage = () => {
   const handleSendConfirm = async () => {
     try {
       if (sendModal.mode === "single") {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
+        await emailService.sendScheduleToFaculty(sendModal.faculty.id);
         setFacultyList((prev) =>
           prev.map((faculty) =>
             faculty.id === sendModal.faculty.id
@@ -182,15 +161,16 @@ const FacultySchedulePage = () => {
         );
         showToast(`Schedule sent to ${sendModal.faculty.name} successfully.`);
       } else {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const res = await emailService.sendScheduleToAll();
         setFacultyList((prev) =>
           prev.map((faculty) => ({ ...faculty, lastEmailSent: new Date().toISOString() }))
         );
-        showToast("Schedule sent to all faculty members successfully.");
+        showToast(`${res?.data?.sentCount ?? "All"} schedule emails sent successfully.`);
       }
       setSendModal({ open: false, faculty: null, mode: "single" });
-    } catch {
-      showToast("Failed to send schedule. Please try again.", "error");
+    } catch (error) {
+      const message = error?.response?.data?.message || "Failed to send schedule. Please try again.";
+      showToast(message, "error");
     }
   };
 
@@ -376,7 +356,7 @@ const FacultySchedulePage = () => {
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {faculty.assignedSchedules.map((schedule, index) => (
-                      <div key={`${schedule.subjectCode}-${index}`} className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-1.5 text-xs">
+                      <div key={`assigned-${index}`} className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-1.5 text-xs">
                         <span className="font-bold text-pup-maroon">{schedule.subjectCode}</span>
                         <span className="text-gray-400">{schedule.day}</span>
                         <span className="font-medium text-gray-600">{schedule.startTime}-{schedule.endTime}</span>

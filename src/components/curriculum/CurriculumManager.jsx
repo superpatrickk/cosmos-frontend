@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
-import { Plus, Pencil, Trash2, BookOpen, Eye, Layers3, Users } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Pencil, Trash2, BookOpen, Eye, Users } from "lucide-react";
 import ConfirmDialog from "../common/ConfirmDialog";
 import CurriculumModal from "./CurriculumModal";
 import CurriculumViewModal from "./CurriculumViewModal";
-import { loadCurricula, saveCurricula } from "../../data/curriculumStore";
+import { normalizeSchedulingCurriculum } from "../../data/curriculumStore";
+import { curriculumService } from "../../api/services/curriculumService";
 
 const MOCK_PROGRAMS = ["BSIT","BSCS","BSEE","BSBA","BSMath"];
 const MOCK_FACULTY = [
@@ -14,12 +15,6 @@ const MOCK_FACULTY = [
   "Prof. Liza Mendoza",
 ];
 
-const getSubjectDefaults = (subject) => ({
-  ...subject,
-  roomType: subject.roomType || subject.type || "Lecture",
-  faculty: subject.faculty || "Unassigned",
-});
-
 const summarizeUnique = (items, limit = 2) => {
   const values = [...new Set(items.filter(Boolean))];
   if (values.length === 0) return "None";
@@ -27,21 +22,10 @@ const summarizeUnique = (items, limit = 2) => {
   return `${values.slice(0, limit).join(", ")} +${values.length - limit}`;
 };
 
-const buildCurriculumRecord = (formData, id) => {
-  const subjects = (formData.subjects ?? []).map(getSubjectDefaults);
-  return {
-    ...formData,
-    id,
-    subjects,
-    totalSubjects: subjects.length,
-    totalUnits: subjects.reduce((sum, subject) => sum + Number(subject.units || 0), 0),
-    status: formData.status || "Active",
-  };
-};
-
 const CurriculumManager = () => {
-  const [curricula, setCurricula]     = useState(() => loadCurricula());
-  const [loading]                     = useState(false);
+  const [curricula, setCurricula]     = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [loadError, setLoadError]     = useState(null);
   const [search, setSearch]           = useState("");
   const [filterProgram, setFilterProgram] = useState("All");
   const [filterFaculty, setFilterFaculty] = useState("All");
@@ -69,42 +53,52 @@ const CurriculumManager = () => {
 
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
-    await new Promise((r) => setTimeout(r, 500));
-    setCurricula((prev) => {
-      const next = prev.filter((c) => c.id !== deleteTarget.id);
-      saveCurricula(next);
-      return next;
-    });
-    setConfirmOpen(false);
-    setDeleteLoading(false);
+    try {
+      await curriculumService.delete(deleteTarget.id);
+      await loadFromServer();
+      setConfirmOpen(false);
+    } catch (err) {
+      console.error("Failed to delete curriculum:", err);
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
-  const handleModalSubmit = async (formData) => {
-    if (modalMode === "bulk") {
-      setCurricula((prev) => {
-        const next = [
-          ...prev,
-          ...formData.map((item, index) => buildCurriculumRecord(item, `CUR${String(prev.length + index + 1).padStart(3, "0")}`)),
-        ];
-        saveCurricula(next);
-        return next;
-      });
-    } else if (modalMode === "add") {
-      setCurricula((prev) => {
-        const next = [
-          ...prev,
-          buildCurriculumRecord(formData, `CUR${String(prev.length + 1).padStart(3, "0")}`),
-        ];
-        saveCurricula(next);
-        return next;
-      });
-    } else {
-      setCurricula((prev) => {
-        const next = prev.map((c) => c.id === selected.id ? buildCurriculumRecord(formData, selected.id) : c);
-        saveCurricula(next);
-        return next;
-      });
+  const loadFromServer = async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await curriculumService.getAll();
+      const data = res?.data ?? res;
+      if (Array.isArray(data)) {
+        setCurricula(data.map(normalizeSchedulingCurriculum));
+      } else {
+        setCurricula([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch curricula from server:", err);
+      setLoadError(err?.message || "Failed to load curricula");
+      setCurricula([]);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => { loadFromServer(); }, []);
+
+  const handleModalSubmit = async (formData) => {
+    // Sync to backend then refresh local list
+    if (modalMode === "bulk") {
+      for (const item of formData) {
+        await curriculumService.create(item);
+      }
+    } else if (modalMode === "add") {
+      await curriculumService.create(formData);
+    } else {
+      await curriculumService.update(selected.id, formData);
+    }
+
+    await loadFromServer();
     setModalOpen(false);
   };
 
@@ -120,6 +114,11 @@ const CurriculumManager = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+            {loadError && (
+              <div className="mr-4 p-2 rounded-md bg-red-50 text-red-700 text-xs">
+                {loadError}
+              </div>
+            )}
 
           <input
             type="text"

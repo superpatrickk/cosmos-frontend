@@ -8,7 +8,6 @@ const RoomViewModal = ({ open, data, onClose, onEdit }) => {
     { label: "Building",  value: data.building, icon: Building2, color: "text-blue-600",   bg: "bg-blue-50"   },
     { label: "Floor",     value: data.floor,    icon: Layers,    color: "text-purple-600",  bg: "bg-purple-50" },
     { label: "Capacity",  value: `${data.capacity} seats`, icon: Users, color: "text-green-600", bg: "bg-green-50" },
-    { label: "Room Type", value: data.type,     icon: DoorOpen,  color: "text-pup-maroon",  bg: "bg-red-50"    },
   ];
 
   return (
@@ -23,7 +22,10 @@ const RoomViewModal = ({ open, data, onClose, onEdit }) => {
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-800">{data.name}</h2>
-              <span className="text-xs text-gray-400">{data.id}</span>
+              <div className="flex gap-2">
+                <span className="text-xs text-gray-400">ID: {data.id}</span>
+                <span className="text-xs text-gray-400">Code: {data.code || (data.id ? `R${data.id}` : "")}</span>
+              </div>
             </div>
           </div>
           <button
@@ -61,35 +63,7 @@ const RoomViewModal = ({ open, data, onClose, onEdit }) => {
             ))}
           </div>
 
-          {/* Amenities */}
-          {data.amenities?.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                Amenities
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {data.amenities.map((a) => (
-                  <span
-                    key={a}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full"
-                  >
-                    <CheckCircle2 size={12} />
-                    {a}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Description */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-              Description
-            </p>
-            <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-xl p-4 border border-gray-100">
-              {data.description}
-            </p>
-          </div>
+          {/* Description, Type, Amenities removed — backend no longer provides these fields */}
         </div>
 
         {/* Footer */}

@@ -9,4 +9,7 @@ export const authService = {
 
   refreshToken: () =>
     axiosInstance.post("/auth/refresh"),
+
+  getCurrentUser: () =>
+    axiosInstance.get("/auth/me"),
 };

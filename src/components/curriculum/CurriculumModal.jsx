@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { subjectService } from "../../api/services/subjectService";
 import {
   AlertCircle,
   BookOpen,
@@ -82,6 +83,10 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
   const [form, setForm] = useState(() => cloneForm(data));
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [librarySubjects, setLibrarySubjects] = useState([]);
+  const [libLoading, setLibLoading] = useState(false);
+  const [libError, setLibError] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
 
   const availableFaculty = useMemo(() => {
     if (!form.program) return FACULTY;
@@ -101,6 +106,47 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
       }
       return next;
     });
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchSubjects = async () => {
+      setLibLoading(true);
+      setLibError(null);
+      try {
+        const res = await subjectService.getAll();
+        // axios response -> data
+        const data = res?.data ?? res;
+        if (mounted) setLibrarySubjects(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (mounted) setLibError(err?.message || "Failed to load subjects");
+      } finally {
+        if (mounted) setLibLoading(false);
+      }
+    };
+    fetchSubjects();
+    return () => { mounted = false; };
+  }, []);
+
+  const matchedLibrary = librarySubjects.filter((s) =>
+    form.program && form.yearLevel && form.semester
+      ? (s.program === form.program || s.program === (form.program || "")) &&
+        (s.yearLevel === form.yearLevel || s.yearLevel === (form.yearLevel || "")) &&
+        (s.semester === form.semester || s.semester === (form.semester || ""))
+      : false
+  );
+
+  const addFromLibrary = (subject) => {
+    setForm((prev) => ({ ...prev, subjects: [...prev.subjects, {
+      code: subject.code || "",
+      description: subject.description || "",
+      lec: subject.lec ?? subject.lecHours ?? 0,
+      lab: subject.lab ?? subject.labHours ?? 0,
+      units: subject.units ?? (Number(subject.lec || 0) + Number(subject.lab || 0)),
+      type: subject.type || "Lecture",
+      roomType: subject.roomType || getRoomTypeForSubject(subject.type) || "Lecture",
+      faculty: subject.faculty || "",
+    }]}));
   };
 
   const addSubject = () => {
@@ -166,8 +212,11 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
     }
 
     setLoading(true);
+    setSubmitError(null);
     try {
       await onSubmit(form);
+    } catch (err) {
+      setSubmitError(err?.message || "Failed to save curriculum");
     } finally {
       setLoading(false);
     }
@@ -217,6 +266,17 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
                 </div>
               </div>
             )}
+            {submitError && (
+              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={16} className="text-red-500 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">Save failed</p>
+                    <p className="mt-1 text-xs text-red-600">{submitError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <Select label="Program" value={form.program} onChange={(value) => updateForm("program", value)} options={PROGRAMS} />
@@ -231,6 +291,37 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
               <InfoStrip icon={BookOpen} label="Subjects" value={form.subjects.length} note={`${form.program || "No program"} curriculum draft`} />
               <InfoStrip icon={Layers3} label="Units" value={form.subjects.reduce((sum, subject) => sum + Number(subject.units || 0), 0)} note="Auto-computed from lec and lab" />
             </div>
+
+            {form.program && form.yearLevel && form.semester && (
+              <div className="px-6">
+                <p className="text-sm font-bold text-gray-700">Library Subjects</p>
+                <p className="text-xs text-gray-400 mt-0.5">Subjects matching selected Program / Year / Semester.</p>
+                <div className="mt-3 grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                  {libLoading ? (
+                    <div className="text-xs text-gray-400">Loading subjects...</div>
+                  ) : libError ? (
+                    <div className="text-xs text-red-500">{libError}</div>
+                  ) : matchedLibrary.length === 0 ? (
+                    <div className="text-xs text-gray-400">No library subjects found for this selection.</div>
+                  ) : (
+                    matchedLibrary.map((s) => (
+                      <div key={s.id || s.code} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <div className="text-sm">
+                          <div className="font-medium text-gray-700">{s.code} — {s.description}</div>
+                          <div className="text-xs text-gray-400">{s.type} · {s.units ?? (Number(s.lec||0)+Number(s.lab||0))} units</div>
+                        </div>
+                        <button
+                          onClick={() => addFromLibrary(s)}
+                          className="px-3 py-1.5 bg-pup-maroon text-white rounded-lg text-xs"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
 
             <div>
               <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -277,7 +368,7 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
                     </thead>
                     <tbody>
                       {form.subjects.map((subject, index) => (
-                        <tr key={`${subject.code}-${index}`} className="border-b border-gray-50">
+                        <tr key={`subject-${index}`} className="border-b border-gray-50">
                           <td className="px-2 py-2">
                             <input
                               value={subject.code}

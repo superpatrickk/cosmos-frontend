@@ -77,7 +77,7 @@ const CurriculumViewModal = ({ open, data, onClose, onEdit }) => {
               </thead>
               <tbody>
                 {data.subjects?.map((subject, index) => (
-                  <tr key={`${subject.code}-${index}`} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr key={`subject-${index}`} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-3 pr-4 text-xs text-gray-400">{index + 1}</td>
                     <td className="py-3 pr-4">
                       <span className="px-2 py-0.5 bg-pup-maroon/10 text-pup-maroon text-xs font-bold rounded">

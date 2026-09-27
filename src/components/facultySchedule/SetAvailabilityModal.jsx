@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -290,7 +290,7 @@ const SetAvailabilityModalContent = ({ faculty, onClose, onSubmit }) => {
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">Assigned classes</p>
               <div className="flex flex-wrap gap-2">
                 {selectedAssigned.map((schedule, index) => (
-                  <span key={`${schedule.subjectCode}-${index}`} className="rounded-lg bg-white px-3 py-1.5 text-xs text-blue-700">
+                  <span key={`assigned-${index}`} className="rounded-lg bg-white px-3 py-1.5 text-xs text-blue-700">
                     {schedule.subjectCode} {formatTime(schedule.start)} - {formatTime(schedule.end)}
                   </span>
                 ))}
@@ -310,7 +310,7 @@ const SetAvailabilityModalContent = ({ faculty, onClose, onSubmit }) => {
               const duration = Math.max(getDuration(slot), 0);
 
               return (
-                <div key={`${slot.start}-${index}`} className="rounded-xl border border-gray-200 p-4">
+                <div key={`slot-${index}`} className="rounded-xl border border-gray-200 p-4">
                   <div className="grid gap-3 lg:grid-cols-[1fr_1fr_180px_44px] lg:items-end">
                     <TimeField label="Start Time" value={slot.start} onChange={(value) => updateSlot(index, { start: value })} />
                     <TimeField label="End Time" value={slot.end} onChange={(value) => updateSlot(index, { end: value })} />
@@ -407,6 +407,8 @@ const SetAvailabilityModalContent = ({ faculty, onClose, onSubmit }) => {
     </div>
   );
 };
+
+console.log("SetAvailabilityModal module loaded");
 
 const TimeField = ({ label, value, onChange }) => (
   <div>

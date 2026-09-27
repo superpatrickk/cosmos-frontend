@@ -1,25 +1,57 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { authService } from "../api/services/authService";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  const login = (userData) => {
-    // Store access token in memory (not localStorage)
-    window.__cosmos_access_token__ = userData.accessToken;
-    // Store everything except the token in state (for UI use)
-    const { accessToken, ...safeUser } = userData;
+  const setSession = (authData) => {
+    window.__cosmos_access_token__ = authData.accessToken;
+    const safeUser = {
+      username: authData.username,
+      name: authData.fullName || authData.username,
+      email: authData.email,
+      role: authData.role,
+    };
     setUser(safeUser);
+    return safeUser;
   };
 
-  const logout = () => {
-    window.__cosmos_access_token__ = null;
-    setUser(null);
+  useEffect(() => {
+    let active = true;
+    authService.getCurrentUser()
+      .then(({ data }) => {
+        if (active) setSession(data);
+      })
+      .catch(() => {
+        window.__cosmos_access_token__ = null;
+        if (active) setUser(null);
+      })
+      .finally(() => {
+        if (active) setIsInitializing(false);
+      });
+
+    return () => { active = false; };
+  }, []);
+
+  const login = async (credentials) => {
+    const { data } = await authService.login(credentials);
+    return setSession(data);
+  };
+
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } finally {
+      window.__cosmos_access_token__ = null;
+      setUser(null);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, isInitializing }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,16 +10,13 @@ import ScheduleAssignmentPage from "../pages/schedules/ScheduleAssignmentPage";
 import FacultySchedulePage from "../pages/facultySchedule/FacultySchedulePage";
 import PrintableSchedulePage from "../pages/printable/PrintableSchedulePage";
 import CurriculumPage from "../pages/curriculum/CurriculumPage";
+import SubjectsPage from "../pages/subjects/SubjectsPage";
 
 
 
 
 
 
-
-const Placeholder = ({ name }) => (
-  <div className="p-6 text-gray-400 text-sm">{name} — Coming Soon</div>
-);
 
 const AppRouter = () => {
   return (
@@ -48,6 +45,11 @@ const AppRouter = () => {
     <MainLayout><CurriculumPage/></MainLayout>
   </ProtectedRoute>
 } />
+        <Route path="/subjects" element={
+          <ProtectedRoute>
+            <MainLayout><SubjectsPage /></MainLayout>
+          </ProtectedRoute>
+        } />
         <Route path="/rooms" element={
   <ProtectedRoute>
     <MainLayout><RoomsPage /></MainLayout>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
+console.log("SubjectModal module loaded");
+
 const EMPTY_FORM = {
   code: "",
   name: "",
@@ -30,7 +32,7 @@ const SubjectModal = ({ open, mode, data, onClose, onSubmit }) => {
       setForm(data ? { ...data } : EMPTY_FORM);
       setErrors({});
     }
-  }, [open, data]);
+  }, [open]);
 
   if (!open) return null;
 

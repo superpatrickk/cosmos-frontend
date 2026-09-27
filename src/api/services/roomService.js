@@ -18,4 +18,6 @@ export const roomService = {
 
   export: () =>
     axiosInstance.get("/rooms/export", { responseType: "blob" }),
+  getMetadata: () =>
+    axiosInstance.get("/rooms/meta"),
 };

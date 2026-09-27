@@ -4,77 +4,18 @@ import StatusBadge from "../../components/common/StatusBadge";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import RoomModal from "../../components/rooms/RoomModal";
 import RoomViewModal from "../../components/rooms/RoomViewModal";
+// Rooms import modal removed per request
 import { roomService } from "../../api/services/roomService";
 import {
   DoorOpen, Users, Building2, Wrench,
   Filter, ChevronLeft, ChevronRight,
   Eye, Pencil, Trash2, Download,
 } from "lucide-react";
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_ROOMS = [
-  {
-    id: "RM001", name: "Conference Room A",
-    building: "Main Building", floor: "2nd Floor",
-    capacity: 50, status: "Available", type: "Conference",
-    description: "Fully air-conditioned conference room with projector and whiteboard.",
-    amenities: ["Projector", "Whiteboard", "AC", "WiFi"],
-  },
-  {
-    id: "RM002", name: "Lecture Hall 1",
-    building: "Academic Building", floor: "1st Floor",
-    capacity: 100, status: "Occupied", type: "Lecture",
-    description: "Large lecture hall with stadium seating and dual projectors.",
-    amenities: ["Projector", "AC", "WiFi", "Sound System"],
-  },
-  {
-    id: "RM003", name: "Lab Room 101",
-    building: "Science Building", floor: "1st Floor",
-    capacity: 30, status: "Available", type: "Laboratory",
-    description: "Computer laboratory with 30 workstations and high-speed internet.",
-    amenities: ["Computers", "AC", "WiFi", "Printer"],
-  },
-  {
-    id: "RM004", name: "Tutorial Room B",
-    building: "Main Building", floor: "3rd Floor",
-    capacity: 25, status: "Maintenance", type: "Tutorial",
-    description: "Small tutorial room undergoing electrical maintenance.",
-    amenities: ["Whiteboard", "AC"],
-  },
-  {
-    id: "RM005", name: "Auditorium",
-    building: "Main Building", floor: "Ground Floor",
-    capacity: 200, status: "Occupied", type: "Auditorium",
-    description: "Main auditorium for university-wide events and presentations.",
-    amenities: ["Stage", "Sound System", "Projector", "AC", "WiFi"],
-  },
-  {
-    id: "RM006", name: "Seminar Room 1",
-    building: "Academic Building", floor: "2nd Floor",
-    capacity: 40, status: "Available", type: "Lecture",
-    description: "Mid-sized seminar room ideal for group discussions.",
-    amenities: ["Projector", "Whiteboard", "AC", "WiFi"],
-  },
-  {
-    id: "RM007", name: "Engineering Lab",
-    building: "Engineering Building", floor: "1st Floor",
-    capacity: 35, status: "Available", type: "Laboratory",
-    description: "Equipped with electronic testing equipment and workbenches.",
-    amenities: ["Equipment", "AC", "WiFi"],
-  },
-  {
-    id: "RM008", name: "Business Hall",
-    building: "Business Building", floor: "2nd Floor",
-    capacity: 80, status: "Available", type: "Lecture",
-    description: "Spacious hall for business and management classes.",
-    amenities: ["Projector", "AC", "WiFi", "Whiteboard"],
-  },
-];
-
-const ROOM_TYPES   = ["All Types", "Lecture", "Laboratory", "Conference", "Tutorial", "Auditorium"];
 const BUILDINGS    = ["All Buildings", "Main Building", "Academic Building", "Science Building", "Engineering Building", "Business Building"];
 const STATUS_LIST  = ["All Status", "Available", "Occupied", "Maintenance"];
 const ITEMS_PER_PAGE = 5;
+
+// amenities removed from backend — no normalization needed
 // ──────────────────────────────────────────────────────────────────────────────
 
 const RoomsPage = () => {
@@ -82,7 +23,7 @@ const RoomsPage = () => {
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [search, setSearch]             = useState("");
-  const [filterType, setFilterType]     = useState("All Types");
+  // type filter removed (backend no longer provides `type`)
   const [filterBuilding, setFilterBuilding] = useState("All Buildings");
   const [filterStatus, setFilterStatus] = useState("All Status");
   const [showFilter, setShowFilter]     = useState(false);
@@ -99,9 +40,12 @@ const RoomsPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: const res = await roomService.getAll(); setRooms(res.data);
-      await new Promise((r) => setTimeout(r, 700));
-      setRooms(MOCK_ROOMS);
+      const res = await roomService.getAll({
+        search,
+        building: filterBuilding === "All Buildings" ? "" : filterBuilding,
+        status: filterStatus === "All Status" ? "" : filterStatus,
+      });
+      setRooms(res.data ?? []);
     } catch {
       setError("Failed to load rooms.");
     } finally {
@@ -109,19 +53,22 @@ const RoomsPage = () => {
     }
   };
 
-  useEffect(() => { fetchRooms(); }, []);
+  useEffect(() => { fetchRooms(); }, [search, filterBuilding, filterStatus]);
 
   const filtered = useMemo(() => {
     return rooms.filter((r) => {
-      const matchSearch = [r.name, r.building, r.type, r.id]
+      const matchSearch = [r.name, r.building, r.id]
         .join(" ").toLowerCase()
         .includes(search.toLowerCase());
-      const matchType     = filterType === "All Types"         || r.type === filterType;
+      // include room code in search
+      const matchSearchWithCode = [r.name, r.building, r.id, r.code]
+        .join(" ").toLowerCase()
+        .includes(search.toLowerCase());
       const matchBuilding = filterBuilding === "All Buildings" || r.building === filterBuilding;
       const matchStatus   = filterStatus === "All Status"      || r.status === filterStatus;
-      return matchSearch && matchType && matchBuilding && matchStatus;
+      return matchSearchWithCode && matchBuilding && matchStatus;
     });
-  }, [rooms, search, filterType, filterBuilding, filterStatus]);
+  }, [rooms, search, filterBuilding, filterStatus]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated  = filtered.slice(
@@ -129,21 +76,19 @@ const RoomsPage = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  useEffect(() => { setCurrentPage(1); }, [search, filterType, filterBuilding, filterStatus]);
+  useEffect(() => { setCurrentPage(1); }, [search, filterBuilding, filterStatus]);
 
   // Summary stats
   const available   = rooms.filter((r) => r.status === "Available").length;
   const occupied    = rooms.filter((r) => r.status === "Occupied").length;
   const maintenance = rooms.filter((r) => r.status === "Maintenance").length;
-  const totalCap    = rooms.reduce((s, r) => s + r.capacity, 0);
+  const totalCap    = rooms.reduce((s, r) => s + (r.capacity ?? 0), 0);
 
   const hasActiveFilter =
-    filterType !== "All Types" ||
     filterBuilding !== "All Buildings" ||
     filterStatus !== "All Status";
 
   const clearFilters = () => {
-    setFilterType("All Types");
     setFilterBuilding("All Buildings");
     setFilterStatus("All Status");
     setShowFilter(false);
@@ -175,31 +120,32 @@ const RoomsPage = () => {
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
     try {
-      // TODO: await roomService.delete(deleteTarget.id);
-      await new Promise((r) => setTimeout(r, 500));
+      await roomService.delete(deleteTarget.id);
       setRooms((prev) => prev.filter((r) => r.id !== deleteTarget.id));
       setConfirmOpen(false);
     } catch {
-      alert("Failed to delete room.");
+      setError("Failed to delete room.");
     } finally {
       setDeleteLoading(false);
     }
   };
 
   const handleModalSubmit = async (formData) => {
-    if (modalMode === "add") {
-      // TODO: await roomService.create(formData);
-      setRooms((prev) => [
-        ...prev,
-        { ...formData, id: `RM00${rooms.length + 1}` },
-      ]);
-    } else {
-      // TODO: await roomService.update(selected.id, formData);
-      setRooms((prev) =>
-        prev.map((r) => r.id === selected.id ? { ...r, ...formData } : r)
-      );
+    try {
+      if (modalMode === "add") {
+        const res = await roomService.create({ ...formData });
+        setRooms((prev) => [res.data, ...prev]);
+      } else {
+        const res = await roomService.update(selected.id, { ...formData });
+        setRooms((prev) =>
+          prev.map((r) => r.id === selected.id ? res.data : r)
+        );
+      }
+      setModalOpen(false);
+    } catch {
+      setError("Failed to save room.");
+      throw new Error("save-failed");
     }
-    setModalOpen(false);
   };
 
   const handleExport = async () => {
@@ -275,6 +221,8 @@ const RoomsPage = () => {
                 Export
               </button>
 
+              {/* Import button removed */}
+
               {/* Filter Button */}
               <div className="relative">
                 <button
@@ -320,24 +268,7 @@ const RoomsPage = () => {
 
                     {/* Filter by Type */}
                     <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase mb-2">
-                        Room Type
-                      </p>
-                      <div className="space-y-1">
-                        {ROOM_TYPES.map((t) => (
-                          <button
-                            key={t}
-                            onClick={() => setFilterType(t)}
-                            className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                              filterType === t
-                                ? "bg-pup-maroon text-white"
-                                : "hover:bg-gray-50 text-gray-700"
-                            }`}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </div>
+                      {/* Room Type filter removed (backend no longer has `type`) */}
                     </div>
 
                     {/* Filter by Building */}
@@ -382,11 +313,12 @@ const RoomsPage = () => {
               <thead>
                 <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wide">
                   <th className="text-left px-6 py-3 font-semibold">Room ID</th>
+                  <th className="text-left px-6 py-3 font-semibold">Code</th>
                   <th className="text-left px-6 py-3 font-semibold">Room Name</th>
                   <th className="text-left px-6 py-3 font-semibold">Building</th>
                   <th className="text-left px-6 py-3 font-semibold">Floor</th>
                   <th className="text-left px-6 py-3 font-semibold">Capacity</th>
-                  <th className="text-left px-6 py-3 font-semibold">Type</th>
+                  {/* Type column removed (backend no longer provides `type`) */}
                   <th className="text-left px-6 py-3 font-semibold">Status</th>
                   <th className="text-left px-6 py-3 font-semibold">Actions</th>
                 </tr>
@@ -435,12 +367,10 @@ const RoomsPage = () => {
                     <td className="px-6 py-4 text-xs text-gray-400 font-medium">
                       {room.id}
                     </td>
+                    <td className="px-6 py-4 text-xs text-gray-400 font-medium">{room.code || (room.id ? `R${room.id}` : "")}</td>
                     <td className="px-6 py-4">
                       <div>
                         <p className="font-semibold text-gray-800">{room.name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                          {room.amenities?.join(", ")}
-                        </p>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-gray-600 text-xs">{room.building}</td>
@@ -453,11 +383,7 @@ const RoomsPage = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg">
-                        {room.type}
-                      </span>
-                    </td>
+                    {/* Type column removed (backend no longer provides `type`) */}
                     <td className="px-6 py-4">
                       <StatusBadge status={room.status} />
                     </td>
@@ -542,6 +468,8 @@ const RoomsPage = () => {
         onClose={() => setModalOpen(false)}
         onSubmit={handleModalSubmit}
       />
+
+      {/* Temporary import UI removed */}
 
       <RoomViewModal
         open={viewOpen}

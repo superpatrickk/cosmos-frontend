@@ -21,6 +21,51 @@ const DEPARTMENTS = [
 
 const STATUSES = ["Active", "On Leave", "Inactive"];
 
+const Field = ({ label, name, type = "text", options, form, errors, onChange, isView }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      {label}
+    </label>
+    {isView ? (
+      <p className="text-sm text-gray-800 font-medium py-1">
+        {form[name] || "—"}
+      </p>
+    ) : options ? (
+      <select
+        name={name}
+        value={form[name]}
+        onChange={onChange}
+        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${errors[name] ? "border-red-400" : "border-gray-200"}`}
+      >
+        <option value="">Select {label}</option>
+        {options.map((opt) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    ) : (
+      <input
+        type={type}
+        name={name}
+        value={form[name]}
+        onChange={onChange}
+        placeholder={
+          name === "email" ? "e.g. faculty@pup.edu.ph" : undefined
+        }
+        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${errors[name] ? "border-red-400" : "border-gray-200"}`}
+      />
+    )}
+    {/* Show notification hint for email field only */}
+    {!isView && name === "email" && (
+      <p className="text-xs text-gray-400">
+        📧 Schedule notifications will be sent to this address.
+      </p>
+    )}
+    {errors[name] && (
+      <p className="text-xs text-red-500">{errors[name]}</p>
+    )}
+  </div>
+);
+
 const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
   const [form, setForm]     = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
@@ -31,7 +76,7 @@ const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
       setForm(data ? { ...data } : EMPTY_FORM);
       setErrors({});
     }
-  }, [open, data]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -65,51 +110,7 @@ const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
       setLoading(false);
     }
   };
-
-  const Field = ({ label, name, type = "text", options }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-        {label}
-      </label>
-      {isView ? (
-        <p className="text-sm text-gray-800 font-medium py-1">
-          {form[name] || "—"}
-        </p>
-      ) : options ? (
-        <select
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${errors[name] ? "border-red-400" : "border-gray-200"}`}
-        >
-          <option value="">Select {label}</option>
-          {options.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={type}
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          placeholder={
-            name === "email" ? "e.g. faculty@pup.edu.ph" : undefined
-          }
-          className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${errors[name] ? "border-red-400" : "border-gray-200"}`}
-        />
-      )}
-      {/* Show notification hint for email field only */}
-      {!isView && name === "email" && (
-        <p className="text-xs text-gray-400">
-          📧 Schedule notifications will be sent to this address.
-        </p>
-      )}
-      {errors[name] && (
-        <p className="text-xs text-red-500">{errors[name]}</p>
-      )}
-    </div>
-  );
+  
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -129,15 +130,15 @@ const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
         {/* Modal Body */}
         <div className="px-6 py-5 grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <Field label="Full Name" name="name" />
+            <Field label="Full Name" name="name" form={form} errors={errors} onChange={handleChange} isView={isView} />
           </div>
-          <Field label="Department"     name="department"     options={DEPARTMENTS} />
-          <Field label="Specialization" name="specialization" />
+          <Field label="Department"     name="department"     options={DEPARTMENTS} form={form} errors={errors} onChange={handleChange} isView={isView} />
+          <Field label="Specialization" name="specialization" form={form} errors={errors} onChange={handleChange} isView={isView} />
           <div className="col-span-2">
-            <Field label="Email" name="email" type="email" />
+            <Field label="Email" name="email" type="email" form={form} errors={errors} onChange={handleChange} isView={isView} />
           </div>
-          <Field label="Phone"  name="phone" />
-          <Field label="Status" name="status" options={STATUSES} />
+          <Field label="Phone"  name="phone" form={form} errors={errors} onChange={handleChange} isView={isView} />
+          <Field label="Status" name="status" options={STATUSES} form={form} errors={errors} onChange={handleChange} isView={isView} />
         </div>
 
         {/* Modal Footer */}

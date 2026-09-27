@@ -19,17 +19,79 @@ const DEPARTMENTS = [
   "College of Arts and Letters",
 ];
 
-const DURATIONS  = ["2 years", "3 years", "4 years", "5 years"];
-const STATUSES   = ["Active", "Inactive"];
+const DURATIONS = ["2 years", "3 years", "4 years", "5 years"];
+const STATUSES = ["Active", "Inactive"];
+
+const InputField = ({
+  label,
+  name,
+  type = "text",
+  options,
+  span = 1,
+  form,
+  errors,
+  onChange,
+}) => (
+  <div className={`flex flex-col gap-1 ${span === 2 ? "col-span-2" : ""}`}>
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      {label}
+    </label>
+
+    {options ? (
+      <select
+        name={name}
+        value={form[name]}
+        onChange={onChange}
+        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
+          errors[name] ? "border-red-400" : "border-gray-200"
+        }`}
+      >
+        {!form[name] && <option value="">Select {label}</option>}
+
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    ) : type === "textarea" ? (
+      <textarea
+        name={name}
+        value={form[name]}
+        onChange={onChange}
+        rows={3}
+        placeholder={`Enter ${label.toLowerCase()}...`}
+        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition resize-none ${
+          errors[name] ? "border-red-400" : "border-gray-200"
+        }`}
+      />
+    ) : (
+      <input
+        type={type}
+        name={name}
+        value={form[name]}
+        onChange={onChange}
+        placeholder={`Enter ${label.toLowerCase()}...`}
+        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
+          errors[name] ? "border-red-400" : "border-gray-200"
+        }`}
+      />
+    )}
+
+    {errors[name] && (
+      <p className="text-xs text-red-500">{errors[name]}</p>
+    )}
+  </div>
+);
 
 const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
-  const [form, setForm]       = useState(EMPTY_FORM);
-  const [errors, setErrors]   = useState({});
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setForm(data ? { ...data } : EMPTY_FORM);
+      setForm(data ? { ...data } : { ...EMPTY_FORM });
       setErrors({});
     }
   }, [open, data]);
@@ -40,70 +102,58 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
 
   const validate = () => {
     const e = {};
-    if (!form.code.trim())        e.code = "Course code is required.";
-    if (!form.name.trim())        e.name = "Course name is required.";
-    if (!form.department.trim())  e.department = "Department is required.";
-    if (!form.description.trim()) e.description = "Description is required.";
+
+    if (!form.code.trim()) {
+      e.code = "Course code is required.";
+    }
+
+    if (!form.name.trim()) {
+      e.name = "Course name is required.";
+    }
+
+    if (!form.department.trim()) {
+      e.department = "Department is required.";
+    }
+
+    if (!form.description.trim()) {
+      e.description = "Description is required.";
+    }
+
     return e;
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: null,
+      }));
+    }
   };
 
   const handleSubmit = async () => {
-    const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
-    setLoading(true);
-    try { await onSubmit(form); }
-    finally { setLoading(false); }
-  };
+    const validationErrors = validate();
 
-  const InputField = ({ label, name, type = "text", options, span = 1 }) => (
-    <div className={`flex flex-col gap-1 ${span === 2 ? "col-span-2" : ""}`}>
-      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-        {label}
-      </label>
-      {options ? (
-        <select
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
-            errors[name] ? "border-red-400" : "border-gray-200"
-          }`}
-        >
-          {!form[name] && <option value="">Select {label}</option>}
-          {options.map((o) => <option key={o}>{o}</option>)}
-        </select>
-      ) : type === "textarea" ? (
-        <textarea
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          rows={3}
-          placeholder={`Enter ${label.toLowerCase()}...`}
-          className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition resize-none ${
-            errors[name] ? "border-red-400" : "border-gray-200"
-          }`}
-        />
-      ) : (
-        <input
-          type={type}
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          placeholder={`Enter ${label.toLowerCase()}...`}
-          className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
-            errors[name] ? "border-red-400" : "border-gray-200"
-          }`}
-        />
-      )}
-      {errors[name] && <p className="text-xs text-red-500">{errors[name]}</p>}
-    </div>
-  );
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await onSubmit(form);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -112,12 +162,17 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <div>
-            <h2 className="text-base font-bold text-gray-800">{title}</h2>
+            <h2 className="text-base font-bold text-gray-800">
+              {title}
+            </h2>
+
             <p className="text-xs text-gray-400 mt-0.5">
               Fill in the course details below
             </p>
           </div>
+
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
@@ -127,30 +182,97 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
 
         {/* Body */}
         <div className="px-6 py-5 grid grid-cols-2 gap-4 overflow-y-auto">
-          <InputField label="Course Code"       name="code"             span={1} />
-          <InputField label="Status"            name="status"           options={STATUSES} />
-          <InputField label="Course Name"       name="name"             span={2} />
-          <InputField label="Department"        name="department"       options={DEPARTMENTS} span={2} />
-          <InputField label="Duration"          name="duration"         options={DURATIONS} />
-          <InputField label="Year Established"  name="yearEstablished"  type="number" />
-          <InputField label="Description"       name="description"      type="textarea" span={2} />
+
+          <InputField
+            label="Course Code"
+            name="code"
+            span={1}
+            form={form}
+            errors={errors}
+            onChange={handleChange}
+          />
+
+          <InputField
+            label="Status"
+            name="status"
+            options={STATUSES}
+            form={form}
+            errors={errors}
+            onChange={handleChange}
+          />
+
+          <InputField
+            label="Course Name"
+            name="name"
+            span={2}
+            form={form}
+            errors={errors}
+            onChange={handleChange}
+          />
+
+          <InputField
+            label="Department"
+            name="department"
+            options={DEPARTMENTS}
+            span={2}
+            form={form}
+            errors={errors}
+            onChange={handleChange}
+          />
+
+          <InputField
+            label="Duration"
+            name="duration"
+            options={DURATIONS}
+            form={form}
+            errors={errors}
+            onChange={handleChange}
+          />
+
+          <InputField
+            label="Year Established"
+            name="yearEstablished"
+            type="number"
+            form={form}
+            errors={errors}
+            onChange={handleChange}
+          />
+
+          <InputField
+            label="Description"
+            name="description"
+            type="textarea"
+            span={2}
+            form={form}
+            errors={errors}
+            onChange={handleChange}
+          />
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+
           <button
+            type="button"
             onClick={onClose}
             className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Cancel
           </button>
+
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={loading}
             className="px-4 py-2 text-sm bg-pup-maroon text-white rounded-lg font-medium hover:bg-pup-maroon-dark transition-colors disabled:opacity-60"
           >
-            {loading ? "Saving..." : mode === "add" ? "Add Course" : "Save Changes"}
+            {loading
+              ? "Saving..."
+              : mode === "add"
+                ? "Add Course"
+                : "Save Changes"}
           </button>
+
         </div>
       </div>
     </div>
