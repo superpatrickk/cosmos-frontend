@@ -6,6 +6,8 @@ import StatusBadge from "../../components/common/StatusBadge";
 import ScheduleForm from "../../components/schedules/ScheduleForm";
 import ScheduleEditModal from "../../components/schedules/ScheduleEditModal";
 import { scheduleService } from "../../api/services/scheduleService";
+import { facultyService } from "../../api/services/facultyService";
+import { roomService } from "../../api/services/roomService";
 import {
   CalendarDays, Clock, DoorOpen, Users,
   ChevronLeft, ChevronRight, Pencil, Trash2,
@@ -20,21 +22,6 @@ const MOCK_SUBJECTS = [
   { id: "S004", code: "BA105",   name: "Principles of Management" },
   { id: "S005", code: "CS201",   name: "Data Structures" },
   { id: "S006", code: "CS301",   name: "Database Management Systems" },
-];
-
-const MOCK_FACULTY = [
-  { id: "F001", name: "Dr. Maria Santos" },
-  { id: "F002", name: "Prof. Juan Reyes" },
-  { id: "F003", name: "Dr. Ana Cruz" },
-  { id: "F004", name: "Prof. Carlos Garcia" },
-];
-
-const MOCK_ROOMS = [
-  { id: "RM001", name: "Conference Room A",  capacity: 50  },
-  { id: "RM002", name: "Lecture Hall 1",     capacity: 100 },
-  { id: "RM003", name: "Lab Room 101",       capacity: 30  },
-  { id: "RM005", name: "Auditorium",         capacity: 200 },
-  { id: "RM006", name: "Seminar Room 1",     capacity: 40  },
 ];
 
 const MOCK_COURSES = [
@@ -109,11 +96,15 @@ const ScheduleAssignmentPage = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [formLoading, setFormLoading]   = useState(false);
   const [conflictResult, setConflictResult] = useState(null);
+  const [faculty, setFaculty] = useState([]);
+  const [facultyLoading, setFacultyLoading] = useState(true);
+  const [facultyError, setFacultyError] = useState(null);
+  const [rooms, setRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [roomsError, setRoomsError] = useState(null);
 
   // Dropdown options state
   const [subjects] = useState(MOCK_SUBJECTS);
-  const [faculty]  = useState(MOCK_FACULTY);
-  const [rooms]    = useState(MOCK_ROOMS);
   const [courses]  = useState(MOCK_COURSES);
 
   const fetchSchedules = async () => {
@@ -131,6 +122,44 @@ const ScheduleAssignmentPage = () => {
   };
 
   useEffect(() => { fetchSchedules(); }, []);
+
+  useEffect(() => {
+    let active = true;
+    const fetchFaculty = async () => {
+      setFacultyLoading(true);
+      setFacultyError(null);
+      try {
+        const response = await facultyService.getAll();
+        const data = response?.data ?? response;
+        if (active) setFaculty(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (active) setFacultyError(err?.response?.data?.message || err?.message || "Failed to load faculty members.");
+      } finally {
+        if (active) setFacultyLoading(false);
+      }
+    };
+    fetchFaculty();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const fetchRooms = async () => {
+      setRoomsLoading(true);
+      setRoomsError(null);
+      try {
+        const response = await roomService.getAll();
+        const data = response?.data ?? response;
+        if (active) setRooms(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (active) setRoomsError(err?.response?.data?.message || err?.message || "Failed to load rooms.");
+      } finally {
+        if (active) setRoomsLoading(false);
+      }
+    };
+    fetchRooms();
+    return () => { active = false; };
+  }, []);
 
   const filtered = useMemo(() => {
     return schedules.filter((s) => {
@@ -188,7 +217,7 @@ const ScheduleAssignmentPage = () => {
         ...formData,
         id: `SCH00${schedules.length + 1}`,
         subjectName: subjects.find((s) => s.code === formData.subjectCode)?.name ?? "",
-        roomName: rooms.find((r) => r.id === formData.room)?.name ?? "",
+        roomName: rooms.find((r) => r.code === formData.room)?.name ?? "",
         status: "Active",
       };
       setSchedules((prev) => [...prev, newSchedule]);
@@ -212,7 +241,7 @@ const ScheduleAssignmentPage = () => {
             ? {
                 ...s, ...formData,
                 subjectName: subjects.find((sub) => sub.code === formData.subjectCode)?.name ?? s.subjectName,
-                roomName: rooms.find((r) => r.id === formData.room)?.name ?? s.roomName,
+                roomName: rooms.find((r) => r.code === formData.room)?.name ?? s.roomName,
               }
             : s
         )
@@ -289,7 +318,11 @@ const ScheduleAssignmentPage = () => {
         <ScheduleForm
           subjects={subjects}
           faculty={faculty}
+          facultyLoading={facultyLoading}
+          facultyError={facultyError}
           rooms={rooms}
+          roomsLoading={roomsLoading}
+          roomsError={roomsError}
           courses={courses}
           days={DAYS}
           onCheckConflicts={handleCheckConflicts}
@@ -522,6 +555,8 @@ const ScheduleAssignmentPage = () => {
         subjects={subjects}
         faculty={faculty}
         rooms={rooms}
+        roomsLoading={roomsLoading}
+        roomsError={roomsError}
         courses={courses}
         days={DAYS}
         onClose={() => setEditModalOpen(false)}

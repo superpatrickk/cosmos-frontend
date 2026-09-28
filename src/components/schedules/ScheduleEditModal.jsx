@@ -3,8 +3,49 @@ import { X, Loader2 } from "lucide-react";
 
 const SEMESTERS = ["1st Semester", "2nd Semester", "Summer"];
 
+const Field = ({ label, name, type = "text", options, valueKey = null, labelKey = null, form, errors, onChange, disabled = false, placeholder }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      {label}
+    </label>
+    {options ? (
+      <select
+        name={name}
+        value={form[name] ?? ""}
+        onChange={onChange}
+        disabled={disabled}
+        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition bg-white ${
+          errors[name] ? "border-red-400" : "border-gray-200"
+        }`}
+      >
+        <option value="">{placeholder || `Select ${label}`}</option>
+        {options.map((o) => (
+          <option key={valueKey ? o[valueKey] : o} value={valueKey ? o[valueKey] : o}>
+            {labelKey
+              ? (Array.isArray(labelKey)
+                  ? labelKey.map((k) => o[k]).join(" – ")
+                  : o[labelKey])
+              : o}
+          </option>
+        ))}
+      </select>
+    ) : (
+      <input
+        type={type}
+        name={name}
+        value={form[name] ?? ""}
+        onChange={onChange}
+        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
+          errors[name] ? "border-red-400" : "border-gray-200"
+        }`}
+      />
+    )}
+    {errors[name] && <p className="text-xs text-red-500">{errors[name]}</p>}
+  </div>
+);
+
 const ScheduleEditModal = ({
-  open, data, subjects, faculty, rooms, courses, days,
+  open, data, subjects, faculty, rooms, roomsLoading, roomsError, courses, days,
   onClose, onSubmit,
 }) => {
   const [form, setForm]       = useState({});
@@ -61,46 +102,6 @@ const ScheduleEditModal = ({
     finally { setLoading(false); }
   };
 
-  const Field = ({ label, name, type = "text", options, valueKey = null, labelKey = null }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-        {label}
-      </label>
-      {options ? (
-        <select
-          name={name}
-          value={form[name] ?? ""}
-          onChange={handleChange}
-          className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition bg-white ${
-            errors[name] ? "border-red-400" : "border-gray-200"
-          }`}
-        >
-          <option value="">Select {label}</option>
-          {options.map((o) => (
-            <option key={valueKey ? o[valueKey] : o} value={valueKey ? o[valueKey] : o}>
-              {labelKey
-                ? (Array.isArray(labelKey)
-                    ? labelKey.map((k) => o[k]).join(" – ")
-                    : o[labelKey])
-                : o}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={type}
-          name={name}
-          value={form[name] ?? ""}
-          onChange={handleChange}
-          className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
-            errors[name] ? "border-red-400" : "border-gray-200"
-          }`}
-        />
-      )}
-      {errors[name] && <p className="text-xs text-red-500">{errors[name]}</p>}
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 max-h-[90vh] flex flex-col">
@@ -123,16 +124,27 @@ const ScheduleEditModal = ({
 
         {/* Body */}
         <div className="px-6 py-5 grid grid-cols-2 gap-4 overflow-y-auto">
-          <Field label="Subject"  name="subjectCode" options={subjects} valueKey="code"  labelKey={["code","name"]} />
-          <Field label="Faculty"  name="faculty"     options={faculty}  valueKey="name"  labelKey="name" />
-          <Field label="Room"     name="room"        options={rooms}    valueKey="id"    labelKey="name" />
-          <Field label="Day"      name="day"         options={days} />
-          <Field label="Start Time" name="startTime" type="time" />
-          <Field label="End Time"   name="endTime"   type="time" />
-          <Field label="Course"   name="course"      options={courses}  valueKey="code"  labelKey="code" />
-          <Field label="Section"  name="section" />
-          <Field label="Semester" name="semester"    options={SEMESTERS} />
-          <Field label="Status"   name="status"      options={["Active", "Inactive"]} />
+          <Field label="Subject"  name="subjectCode" options={subjects} valueKey="code"  labelKey={["code","name"]} form={form} errors={errors} onChange={handleChange} />
+          <Field label="Faculty"  name="faculty"     options={faculty}  valueKey="name"  labelKey="name" form={form} errors={errors} onChange={handleChange} />
+          <Field
+            label="Room"
+            name="room"
+            options={rooms}
+            valueKey="code"
+            labelKey={["code", "name"]}
+            placeholder={roomsLoading ? "Loading rooms..." : roomsError ? "Rooms unavailable" : rooms.length ? "Select Room" : "No rooms available"}
+            disabled={roomsLoading || Boolean(roomsError) || rooms.length === 0}
+            form={form}
+            errors={errors}
+            onChange={handleChange}
+          />
+          <Field label="Day"      name="day"         options={days} form={form} errors={errors} onChange={handleChange} />
+          <Field label="Start Time" name="startTime" type="time" form={form} errors={errors} onChange={handleChange} />
+          <Field label="End Time"   name="endTime"   type="time" form={form} errors={errors} onChange={handleChange} />
+          <Field label="Course"   name="course"      options={courses}  valueKey="code"  labelKey="code" form={form} errors={errors} onChange={handleChange} />
+          <Field label="Section"  name="section" form={form} errors={errors} onChange={handleChange} />
+          <Field label="Semester" name="semester"    options={SEMESTERS} form={form} errors={errors} onChange={handleChange} />
+          <Field label="Status"   name="status"      options={["Active", "Inactive"]} form={form} errors={errors} onChange={handleChange} />
         </div>
 
         {/* Footer */}

@@ -20,8 +20,62 @@ const EMPTY_FORM = {
 const SEMESTERS     = ["1st Semester", "2nd Semester", "Summer"];
 const ACADEMIC_YEARS = ["2024-2025", "2025-2026", "2026-2027"];
 
+const SelectField = ({ label, name, options, valueKey = null, labelKey = null, form, errors, onChange, disabled = false, placeholder, helpText }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      {label}
+    </label>
+    <select
+      name={name}
+      value={form[name]}
+      onChange={onChange}
+      disabled={disabled}
+      className={`px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition bg-white ${
+        errors[name] ? "border-red-400 bg-red-50" : "border-gray-200"
+      }`}
+    >
+      <option value="">{placeholder || `Select ${label}`}</option>
+      {options.map((o) => (
+        <option key={valueKey ? o[valueKey] : o} value={valueKey ? o[valueKey] : o}>
+          {labelKey
+            ? (Array.isArray(labelKey)
+                ? labelKey.map((k) => o[k]).join(" – ")
+                : o[labelKey])
+            : o}
+        </option>
+      ))}
+    </select>
+    {errors[name] && (
+      <p className="text-xs text-red-500">{errors[name]}</p>
+    )}
+    {helpText && <p className="text-xs text-red-500" role="alert">{helpText}</p>}
+  </div>
+);
+
+const InputField = ({ label, name, type = "text", form, errors, onChange }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      {label}
+    </label>
+    <input
+      type={type}
+      name={name}
+      value={form[name]}
+      onChange={onChange}
+      placeholder={`e.g. ${name === "section" ? "A, B, C" : ""}`}
+      step={type === "time" ? 1800 : undefined}
+      className={`px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
+        errors[name] ? "border-red-400 bg-red-50" : "border-gray-200"
+      }`}
+    />
+    {errors[name] && (
+      <p className="text-xs text-red-500">{errors[name]}</p>
+    )}
+  </div>
+);
+
 const ScheduleForm = ({
-  subjects, faculty, rooms, courses, days,
+  subjects, faculty, facultyLoading, facultyError, rooms, roomsLoading, roomsError, courses, days,
   onCheckConflicts, onAddSchedule,
   loading, conflictResult, onClearConflict,
 }) => {
@@ -83,58 +137,6 @@ const ScheduleForm = ({
     onClearConflict();
   };
 
-  const SelectField = ({ label, name, options, valueKey = null, labelKey = null }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-        {label}
-      </label>
-      <select
-        name={name}
-        value={form[name]}
-        onChange={handleChange}
-        className={`px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition bg-white ${
-          errors[name] ? "border-red-400 bg-red-50" : "border-gray-200"
-        }`}
-      >
-        <option value="">Select {label}</option>
-        {options.map((o) => (
-          <option key={valueKey ? o[valueKey] : o} value={valueKey ? o[valueKey] : o}>
-            {labelKey
-              ? (Array.isArray(labelKey)
-                  ? labelKey.map((k) => o[k]).join(" – ")
-                  : o[labelKey])
-              : o}
-          </option>
-        ))}
-      </select>
-      {errors[name] && (
-        <p className="text-xs text-red-500">{errors[name]}</p>
-      )}
-    </div>
-  );
-
-  const InputField = ({ label, name, type = "text" }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-        {label}
-      </label>
-      <input
-        type={type}
-        name={name}
-        value={form[name]}
-        onChange={handleChange}
-        placeholder={`e.g. ${name === "section" ? "A, B, C" : ""}`}
-        step={type === "time" ? 1800 : undefined}
-        className={`px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
-          errors[name] ? "border-red-400 bg-red-50" : "border-gray-200"
-        }`}
-      />
-      {errors[name] && (
-        <p className="text-xs text-red-500">{errors[name]}</p>
-      )}
-    </div>
-  );
-
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
 
@@ -163,6 +165,9 @@ const ScheduleForm = ({
           options={subjects}
           valueKey="code"
           labelKey={["code", "name"]}
+          form={form}
+          errors={errors}
+          onChange={handleChange}
         />
         <SelectField
           label="Faculty"
@@ -170,33 +175,54 @@ const ScheduleForm = ({
           options={faculty}
           valueKey="name"
           labelKey="name"
+          placeholder={facultyLoading ? "Loading faculty..." : facultyError ? "Faculty unavailable" : faculty.length ? "Select Faculty" : "No faculty records"}
+          disabled={facultyLoading || Boolean(facultyError) || faculty.length === 0}
+          helpText={facultyError}
+          form={form}
+          errors={errors}
+          onChange={handleChange}
         />
         <SelectField
           label="Room"
           name="room"
           options={rooms}
-          valueKey="id"
-          labelKey="name"
+          valueKey="code"
+          labelKey={["code", "name"]}
+          placeholder={roomsLoading ? "Loading rooms..." : roomsError ? "Rooms unavailable" : rooms.length ? "Select Room" : "No rooms available"}
+          disabled={roomsLoading || Boolean(roomsError) || rooms.length === 0}
+          helpText={roomsError}
+          form={form}
+          errors={errors}
+          onChange={handleChange}
         />
         <SelectField
           label="Day"
           name="day"
           options={days}
+          form={form}
+          errors={errors}
+          onChange={handleChange}
         />
-        <InputField label="Start Time" name="startTime" type="time" />
-        <InputField label="End Time"   name="endTime"   type="time" />
+        <InputField label="Start Time" name="startTime" type="time" form={form} errors={errors} onChange={handleChange} />
+        <InputField label="End Time"   name="endTime"   type="time" form={form} errors={errors} onChange={handleChange} />
         <SelectField
           label="Course"
           name="course"
           options={courses}
           valueKey="code"
           labelKey="code"
+          form={form}
+          errors={errors}
+          onChange={handleChange}
         />
-        <InputField label="Section" name="section" />
+        <InputField label="Section" name="section" form={form} errors={errors} onChange={handleChange} />
         <SelectField
           label="Semester"
           name="semester"
           options={SEMESTERS}
+          form={form}
+          errors={errors}
+          onChange={handleChange}
         />
       </div>
 

@@ -16,6 +16,14 @@ const SkeletonRow = () => (
   </div>
 );
 
+const formatTime = (value) => {
+  const match = value?.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return value || "";
+  const hour = Number(match[1]);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  return `${hour % 12 || 12}:${match[2]} ${suffix}`;
+};
+
 const TodaySchedule = ({ schedule, loading, error, activeDay }) => {
   if (loading) {
     return (
@@ -60,8 +68,9 @@ const TodaySchedule = ({ schedule, loading, error, activeDay }) => {
               <p className="text-sm font-semibold text-gray-800">
                 {item.code}
               </p>
+              {item.subjectName && <p className="text-xs text-gray-500 mt-0.5">{item.subjectName}</p>}
               <p className="text-xs text-gray-400 mt-0.5">
-                • {item.students} students
+                {[item.courseCode, item.section && `Section ${item.section}`, item.faculty].filter(Boolean).join(" · ")}
               </p>
             </div>
           </div>
@@ -69,7 +78,7 @@ const TodaySchedule = ({ schedule, loading, error, activeDay }) => {
           {/* Right — Time + Room */}
           <div className="text-right">
             <p className="text-sm font-medium text-gray-700">
-              {item.startTime} - {item.endTime}
+              {formatTime(item.startTime)} - {formatTime(item.endTime)}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">{item.room}</p>
           </div>

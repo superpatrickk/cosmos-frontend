@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { subjectService } from "../../api/services/subjectService";
+import { facultyService } from "../../api/services/facultyService";
 import {
   AlertCircle,
   BookOpen,
@@ -19,14 +20,6 @@ const AY = ["2024-2025", "2025-2026", "2026-2027"];
 const TYPES = ["Lecture", "Laboratory", "Lecture/Lab"];
 const ROOM_TYPES = ["Lecture", "Laboratory", "Computer Lab", "Seminar", "Auditorium"];
 const STATUSES = ["Active", "Inactive"];
-
-const FACULTY = [
-  { name: "Dr. Maria Santos", programs: ["BSIT", "BSCS"] },
-  { name: "Prof. Juan Reyes", programs: ["BSIT", "BSBA"] },
-  { name: "Dr. Ana Cruz", programs: ["BSCS", "BSMath"] },
-  { name: "Prof. Carlos Garcia", programs: ["BSEE", "BSIT"] },
-  { name: "Prof. Liza Mendoza", programs: ["BSBA", "BSMath"] },
-];
 
 const EMPTY_SUBJECT = {
   code: "",
@@ -87,26 +80,39 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
   const [libLoading, setLibLoading] = useState(false);
   const [libError, setLibError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
+  const [faculty, setFaculty] = useState([]);
+  const [facultyLoading, setFacultyLoading] = useState(true);
+  const [facultyError, setFacultyError] = useState(null);
 
   const availableFaculty = useMemo(() => {
-    if (!form.program) return FACULTY;
-    return FACULTY.filter((faculty) => faculty.programs.includes(form.program));
-  }, [form.program]);
+    return faculty.filter((member) => member.status?.toLowerCase() === "active");
+  }, [faculty]);
 
   const updateForm = (key, value) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
-      if (key === "program") {
-        next.subjects = next.subjects.map((subject) => {
-          const facultyAllowed = FACULTY.find(
-            (faculty) => faculty.name === subject.faculty && faculty.programs.includes(value)
-          );
-          return facultyAllowed ? subject : { ...subject, faculty: "" };
-        });
-      }
       return next;
     });
   };
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchFaculty = async () => {
+      setFacultyLoading(true);
+      setFacultyError(null);
+      try {
+        const response = await facultyService.getAll();
+        const data = response?.data ?? response;
+        if (mounted) setFaculty(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (mounted) setFacultyError(err?.message || "Failed to load faculty");
+      } finally {
+        if (mounted) setFacultyLoading(false);
+      }
+    };
+    fetchFaculty();
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -287,7 +293,12 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <InfoStrip icon={UserCheck} label="Available Faculty" value={availableFaculty.length} note="Filtered by affiliated program" />
+              <InfoStrip
+                icon={UserCheck}
+                label="Available Faculty"
+                value={facultyLoading ? "..." : availableFaculty.length}
+                note={facultyError ? "Could not load faculty" : "Active faculty from directory"}
+              />
               <InfoStrip icon={BookOpen} label="Subjects" value={form.subjects.length} note={`${form.program || "No program"} curriculum draft`} />
               <InfoStrip icon={Layers3} label="Units" value={form.subjects.reduce((sum, subject) => sum + Number(subject.units || 0), 0)} note="Auto-computed from lec and lab" />
             </div>
@@ -328,7 +339,7 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
                 <div>
                   <p className="text-sm font-bold text-gray-700">Curriculum Subjects</p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    Professor choices update when the program changes.
+                    Professor choices are loaded from the faculty directory.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -428,12 +439,14 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
                             <select
                               value={subject.faculty}
                               onChange={(event) => updateSubject(index, "faculty", event.target.value)}
-                              disabled={!form.program}
+                              disabled={facultyLoading || Boolean(facultyError)}
                               className="w-44 px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-pup-maroon text-xs bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <option value="">{form.program ? "Select professor" : "Select program first"}</option>
+                              <option value="">
+                                {facultyLoading ? "Loading faculty..." : facultyError ? "Faculty unavailable" : availableFaculty.length ? "Select professor" : "No active faculty"}
+                              </option>
                               {availableFaculty.map((faculty) => (
-                                <option key={faculty.name}>{faculty.name}</option>
+                                <option key={faculty.id} value={faculty.name}>{faculty.name}</option>
                               ))}
                             </select>
                           </td>

@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
-console.log("SubjectModal module loaded");
-
 const EMPTY_FORM = {
   code: "",
   name: "",
@@ -17,20 +15,73 @@ const EMPTY_FORM = {
 };
 
 const TYPES      = ["Lecture", "Lecture/Lab", "Laboratory"];
-const COURSES    = ["All", "BSCS", "BSIT", "BSEE", "BSBA", "BSMath", "BSCE"];
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
 const SEMESTERS  = ["1st Semester", "2nd Semester", "Summer"];
 const STATUSES   = ["Active", "Inactive"];
 
-const SubjectModal = ({ open, mode, data, onClose, onSubmit }) => {
+const Field = ({ label, name, type = "text", options, placeholder, disabled, helpText, span = 1, form, errors, onChange }) => (
+  <div className={`flex flex-col gap-1 ${span === 2 ? "col-span-2" : ""}`}>
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      {label}
+    </label>
+    {options ? (
+      <select
+        name={name}
+        value={form[name]}
+        onChange={onChange}
+        disabled={disabled}
+        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${errors[name] ? "border-red-400" : "border-gray-200"}`}
+      >
+        {placeholder && <option value="">{placeholder}</option>}
+        {options.map((option) => {
+          const value = typeof option === "string" ? option : option.value;
+          const label = typeof option === "string" ? option : option.label;
+          return <option key={value} value={value}>{label}</option>;
+        })}
+      </select>
+    ) : type === "textarea" ? (
+      <textarea
+        name={name}
+        value={form[name]}
+        onChange={onChange}
+        rows={3}
+        placeholder={`Enter ${label.toLowerCase()}...`}
+        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition resize-none ${errors[name] ? "border-red-400" : "border-gray-200"}`}
+      />
+    ) : (
+      <input
+        type={type}
+        name={name}
+        value={form[name]}
+        onChange={onChange}
+        placeholder={`Enter ${label.toLowerCase()}...`}
+        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${errors[name] ? "border-red-400" : "border-gray-200"}`}
+      />
+    )}
+    {errors[name] && <p className="text-xs text-red-500">{errors[name]}</p>}
+    {helpText && <p className="text-xs text-red-500">{helpText}</p>}
+  </div>
+);
+
+const SubjectModal = ({ open, mode, data, courses = [], coursesLoading = false, coursesError, onClose, onSubmit }) => {
   const [form, setForm]       = useState(EMPTY_FORM);
   const [errors, setErrors]   = useState({});
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const activeCourses = courses.filter((course) => course.status?.toLowerCase() === "active");
+  const courseOptions = activeCourses.map((course) => ({
+    value: course.code,
+    label: `${course.code} - ${course.name}`,
+  }));
+  if (form.course && !courseOptions.some((course) => course.value === form.course)) {
+    courseOptions.push({ value: form.course, label: form.course });
+  }
 
   useEffect(() => {
     if (open) {
       setForm(data ? { ...data } : EMPTY_FORM);
       setErrors({});
+      setSubmitError("");
     }
   }, [open]);
 
@@ -56,46 +107,14 @@ const SubjectModal = ({ open, mode, data, onClose, onSubmit }) => {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
-    try { await onSubmit(form); }
+    setSubmitError("");
+    try {
+      await onSubmit(form);
+    } catch (err) {
+      setSubmitError(err?.response?.data?.message || err?.message || "Failed to save subject.");
+    }
     finally { setLoading(false); }
   };
-
-  const Field = ({ label, name, type = "text", options, span = 1 }) => (
-    <div className={`flex flex-col gap-1 ${span === 2 ? "col-span-2" : ""}`}>
-      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-        {label}
-      </label>
-      {options ? (
-        <select
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${errors[name] ? "border-red-400" : "border-gray-200"}`}
-        >
-          {options.map((o) => <option key={o}>{o}</option>)}
-        </select>
-      ) : type === "textarea" ? (
-        <textarea
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          rows={3}
-          placeholder={`Enter ${label.toLowerCase()}...`}
-          className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition resize-none ${errors[name] ? "border-red-400" : "border-gray-200"}`}
-        />
-      ) : (
-        <input
-          type={type}
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          placeholder={`Enter ${label.toLowerCase()}...`}
-          className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${errors[name] ? "border-red-400" : "border-gray-200"}`}
-        />
-      )}
-      {errors[name] && <p className="text-xs text-red-500">{errors[name]}</p>}
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -121,16 +140,31 @@ const SubjectModal = ({ open, mode, data, onClose, onSubmit }) => {
 
         {/* Body */}
         <div className="px-6 py-5 grid grid-cols-2 gap-4 overflow-y-auto">
-          <Field label="Subject Code" name="code" />
-          <Field label="Units"        name="units" type="number" />
-          <Field label="Subject Name" name="name"  span={2} />
-          <Field label="Type"         name="type"  options={TYPES} />
-          <Field label="Course"       name="course" options={COURSES} />
-          <Field label="Prerequisite" name="prerequisite" />
-          <Field label="Status"       name="status" options={STATUSES} />
-          <Field label="Year Level"   name="yearLevel"  options={YEAR_LEVELS} />
-          <Field label="Semester"     name="semester"   options={SEMESTERS} />
-          <Field label="Description"  name="description" type="textarea" span={2} />
+          {submitError && (
+            <p className="col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {submitError}
+            </p>
+          )}
+          <Field label="Subject Code" name="code" form={form} errors={errors} onChange={handleChange} />
+          <Field label="Units"        name="units" type="number" form={form} errors={errors} onChange={handleChange} />
+          <Field label="Subject Name" name="name"  span={2} form={form} errors={errors} onChange={handleChange} />
+          <Field label="Type"         name="type"  options={TYPES} form={form} errors={errors} onChange={handleChange} />
+          <Field
+            label="Course"
+            name="course"
+            options={courseOptions}
+            placeholder={coursesLoading ? "Loading courses..." : coursesError ? "Courses unavailable" : "Select course"}
+            disabled={coursesLoading || Boolean(coursesError) || (!activeCourses.length && !form.course)}
+            helpText={coursesError ? "Course options could not be loaded from the database." : ""}
+            form={form}
+            errors={errors}
+            onChange={handleChange}
+          />
+          <Field label="Prerequisite" name="prerequisite" form={form} errors={errors} onChange={handleChange} />
+          <Field label="Status"       name="status" options={STATUSES} form={form} errors={errors} onChange={handleChange} />
+          <Field label="Year Level"   name="yearLevel"  options={YEAR_LEVELS} form={form} errors={errors} onChange={handleChange} />
+          <Field label="Semester"     name="semester"   options={SEMESTERS} form={form} errors={errors} onChange={handleChange} />
+          <Field label="Description"  name="description" type="textarea" span={2} form={form} errors={errors} onChange={handleChange} />
         </div>
 
         {/* Footer */}

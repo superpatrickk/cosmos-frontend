@@ -5,98 +5,34 @@ import ConfirmDialog from "../../components/common/ConfirmDialog";
 import SubjectModal from "../../components/subjects/SubjectModal";
 import SubjectViewModal from "../../components/subjects/SubjectViewModal";
 import { subjectService } from "../../api/services/subjectService";
+import { courseService } from "../../api/services/courseService";
 import {
   BookMarked, FlaskConical, BookOpen,
   Filter, ChevronLeft, ChevronRight,
   Eye, Pencil, Trash2,
 } from "lucide-react";
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_SUBJECTS = [
-  {
-    id: "S001", code: "CS101",
-    name: "Introduction to Programming",
-    units: 3, type: "Lecture",
-    prerequisite: "None", course: "BSCS",
-    yearLevel: "1st Year", semester: "1st Semester",
-    description: "Fundamental programming concepts using Python and problem-solving techniques.",
-    status: "Active",
-  },
-  {
-    id: "S002", code: "MATH101",
-    name: "Calculus I",
-    units: 3, type: "Lecture",
-    prerequisite: "None", course: "All",
-    yearLevel: "1st Year", semester: "1st Semester",
-    description: "Introduction to differential and integral calculus with applications.",
-    status: "Active",
-  },
-  {
-    id: "S003", code: "EE201",
-    name: "Circuit Analysis",
-    units: 3, type: "Lecture/Lab",
-    prerequisite: "MATH101", course: "BSEE",
-    yearLevel: "2nd Year", semester: "1st Semester",
-    description: "Analysis of DC and AC electrical circuits using standard techniques.",
-    status: "Active",
-  },
-  {
-    id: "S004", code: "BA105",
-    name: "Principles of Management",
-    units: 3, type: "Lecture",
-    prerequisite: "None", course: "BSBA",
-    yearLevel: "1st Year", semester: "2nd Semester",
-    description: "Covers classical and modern management theories and organizational behavior.",
-    status: "Active",
-  },
-  {
-    id: "S005", code: "CS201",
-    name: "Data Structures",
-    units: 3, type: "Lecture/Lab",
-    prerequisite: "CS101", course: "BSCS",
-    yearLevel: "2nd Year", semester: "1st Semester",
-    description: "Study of data organization, manipulation, and algorithm efficiency.",
-    status: "Active",
-  },
-  {
-    id: "S006", code: "CS301",
-    name: "Database Management Systems",
-    units: 3, type: "Lecture/Lab",
-    prerequisite: "CS201", course: "BSCS",
-    yearLevel: "3rd Year", semester: "1st Semester",
-    description: "Relational databases, SQL, normalization, and database design principles.",
-    status: "Active",
-  },
-  {
-    id: "S007", code: "IT201",
-    name: "Web Development",
-    units: 3, type: "Lecture/Lab",
-    prerequisite: "CS101", course: "BSIT",
-    yearLevel: "2nd Year", semester: "2nd Semester",
-    description: "Frontend and backend web development using modern frameworks.",
-    status: "Active",
-  },
-  {
-    id: "S008", code: "MATH201",
-    name: "Calculus II",
-    units: 3, type: "Lecture",
-    prerequisite: "MATH101", course: "All",
-    yearLevel: "1st Year", semester: "2nd Semester",
-    description: "Continuation of Calculus I covering multivariable and integral topics.",
-    status: "Inactive",
-  },
-];
-
 const SUBJECT_TYPES  = ["All Types", "Lecture", "Lecture/Lab", "Laboratory"];
+const ALL_COURSES = "All Courses";
 const ITEMS_PER_PAGE = 6;
-// ──────────────────────────────────────────────────────────────────────────────
+
+const normalizeSubject = (subject) => ({
+  ...subject,
+  name: subject.name || subject.description || "",
+  units: Number(subject.units || 0),
+  prerequisite: subject.prerequisite || "None",
+});
 
 const SubjectsPage = () => {
   const [subjects, setSubjects]         = useState([]);
+  const [courses, setCourses]           = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [coursesError, setCoursesError] = useState(null);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [search, setSearch]             = useState("");
   const [filterType, setFilterType]     = useState("All Types");
+  const [filterCourse, setFilterCourse] = useState(ALL_COURSES);
   const [showFilter, setShowFilter]     = useState(false);
   const [currentPage, setCurrentPage]   = useState(1);
   const [modalOpen, setModalOpen]       = useState(false);
@@ -106,22 +42,46 @@ const SubjectsPage = () => {
   const [confirmOpen, setConfirmOpen]   = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [actionError, setActionError] = useState(null);
 
   const fetchSubjects = async () => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: const res = await subjectService.getAll(); setSubjects(res.data);
-      await new Promise((r) => setTimeout(r, 700));
-      setSubjects(MOCK_SUBJECTS);
-    } catch {
-      setError("Failed to load subjects.");
+      const response = await subjectService.getAll();
+      const data = response?.data ?? response;
+      setSubjects(Array.isArray(data) ? data.map(normalizeSubject) : []);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || "Failed to load subjects.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { fetchSubjects(); }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchCourses = async () => {
+      setCoursesLoading(true);
+      setCoursesError(null);
+      try {
+        const response = await courseService.getAll();
+        const data = response?.data ?? response;
+        if (mounted) setCourses(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (mounted) setCoursesError(err?.response?.data?.message || err?.message || "Failed to load courses.");
+      } finally {
+        if (mounted) setCoursesLoading(false);
+      }
+    };
+    fetchCourses();
+    return () => { mounted = false; };
+  }, []);
+
+  const courseByCode = useMemo(() =>
+    new Map(courses.map((course) => [course.code, course])),
+  [courses]);
 
   const filtered = useMemo(() => {
     return subjects.filter((s) => {
@@ -130,9 +90,10 @@ const SubjectsPage = () => {
         .includes(search.toLowerCase());
       const matchType =
         filterType === "All Types" || s.type === filterType;
-      return matchSearch && matchType;
+      const matchCourse = filterCourse === ALL_COURSES || s.course === filterCourse;
+      return matchSearch && matchType && matchCourse;
     });
-  }, [subjects, search, filterType]);
+  }, [subjects, search, filterType, filterCourse]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated  = filtered.slice(
@@ -140,7 +101,7 @@ const SubjectsPage = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  useEffect(() => { setCurrentPage(1); }, [search, filterType]);
+  useEffect(() => { setCurrentPage(1); }, [search, filterType, filterCourse]);
 
   // Summary stats
   const lectureCount    = subjects.filter((s) => s.type === "Lecture").length;
@@ -173,30 +134,27 @@ const SubjectsPage = () => {
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
     try {
-      // TODO: await subjectService.delete(deleteTarget.id);
-      await new Promise((r) => setTimeout(r, 500));
+      await subjectService.delete(deleteTarget.id);
       setSubjects((prev) => prev.filter((s) => s.id !== deleteTarget.id));
       setConfirmOpen(false);
-    } catch {
-      alert("Failed to delete subject.");
+      setDeleteTarget(null);
+      setActionError(null);
+    } catch (err) {
+      setActionError(err?.response?.data?.message || err?.message || "Failed to delete subject.");
     } finally {
       setDeleteLoading(false);
     }
   };
 
   const handleModalSubmit = async (formData) => {
-    if (modalMode === "add") {
-      // TODO: await subjectService.create(formData);
-      setSubjects((prev) => [
-        ...prev,
-        { ...formData, id: `S00${subjects.length + 1}` },
-      ]);
-    } else {
-      // TODO: await subjectService.update(selected.id, formData);
-      setSubjects((prev) =>
-        prev.map((s) => s.id === selected.id ? { ...s, ...formData } : s)
-      );
-    }
+    const response = modalMode === "add"
+      ? await subjectService.create(formData)
+      : await subjectService.update(selected.id, formData);
+    const savedSubject = normalizeSubject(response?.data ?? response);
+    setSubjects((prev) => modalMode === "add"
+      ? [...prev, savedSubject]
+      : prev.map((subject) => subject.id === selected.id ? savedSubject : subject)
+    );
     setModalOpen(false);
   };
 
@@ -250,6 +208,12 @@ const SubjectsPage = () => {
           ))}
         </div>
 
+        {actionError && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {actionError}
+          </p>
+        )}
+
         {/* Table Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
 
@@ -265,34 +229,52 @@ const SubjectsPage = () => {
               <button
                 onClick={() => setShowFilter((v) => !v)}
                 className={`flex items-center gap-2 px-3 py-1.5 text-sm border rounded-lg transition-colors ${
-                  showFilter || filterType !== "All Types"
+                  showFilter || filterType !== "All Types" || filterCourse !== ALL_COURSES
                     ? "border-pup-maroon text-pup-maroon bg-red-50"
                     : "border-gray-200 text-gray-600 hover:bg-gray-50"
                 }`}
               >
                 <Filter size={14} />
                 Filter
-                {filterType !== "All Types" && (
+                {(filterType !== "All Types" || filterCourse !== ALL_COURSES) && (
                   <span className="w-2 h-2 bg-pup-maroon rounded-full" />
                 )}
               </button>
 
               {showFilter && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-10 p-3 space-y-1">
+                <div className="absolute right-0 mt-2 w-56 max-h-96 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-lg z-10 p-3 space-y-1">
                   <p className="text-xs font-semibold text-gray-400 uppercase px-2 mb-2">
-                    Filter by Type
+                    Subject Type
                   </p>
-                  {SUBJECT_TYPES.map((t) => (
+                  {SUBJECT_TYPES.map((type) => (
                     <button
-                      key={t}
-                      onClick={() => { setFilterType(t); setShowFilter(false); }}
+                      key={type}
+                      onClick={() => setFilterType(type)}
                       className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
-                        filterType === t
+                        filterType === type
                           ? "bg-pup-maroon text-white"
                           : "hover:bg-gray-50 text-gray-700"
                       }`}
                     >
-                      {t}
+                      {type}
+                    </button>
+                  ))}
+                  <p className="text-xs font-semibold text-gray-400 uppercase px-2 pt-3 mb-2">
+                    Program / Course
+                  </p>
+                  {[ALL_COURSES, ...courses].map((course) => (
+                    <button
+                      key={course === ALL_COURSES ? ALL_COURSES : course.id}
+                      onClick={() => setFilterCourse(course === ALL_COURSES ? ALL_COURSES : course.code)}
+                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
+                        filterCourse === (course === ALL_COURSES ? ALL_COURSES : course.code)
+                          ? "bg-pup-maroon text-white"
+                          : "hover:bg-gray-50 text-gray-700"
+                      }`}
+                    >
+                      {course === ALL_COURSES
+                        ? "All Courses"
+                        : `${course.code}${course.name ? ` - ${course.name}` : ""}`}
                     </button>
                   ))}
                 </div>
@@ -389,7 +371,7 @@ const SubjectsPage = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded font-medium">
-                        {subject.course}
+                        {courseByCode.get(subject.course)?.name || subject.course}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -473,6 +455,9 @@ const SubjectsPage = () => {
         open={modalOpen}
         mode={modalMode}
         data={selected}
+        courses={courses}
+        coursesLoading={coursesLoading}
+        coursesError={coursesError}
         onClose={() => setModalOpen(false)}
         onSubmit={handleModalSubmit}
       />

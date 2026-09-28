@@ -10,15 +10,6 @@ const EMPTY_FORM = {
   status: "Active",
 };
 
-const DEPARTMENTS = [
-  "Computer Science",
-  "Engineering",
-  "Mathematics",
-  "Business",
-  "Science",
-  "Arts and Letters",
-];
-
 const STATUSES = ["Active", "On Leave", "Inactive"];
 
 const Field = ({ label, name, type = "text", options, form, errors, onChange, isView }) => (
@@ -70,11 +61,13 @@ const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
   const [form, setForm]     = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors]   = useState({});
+  const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     if (open) {
       setForm(data ? { ...data } : EMPTY_FORM);
       setErrors({});
+      setSubmitError("");
     }
   }, [open]);
 
@@ -104,8 +97,11 @@ const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
+    setSubmitError("");
     try {
       await onSubmit(form);
+    } catch (err) {
+      setSubmitError(err?.response?.data?.message || err?.message || "Failed to save faculty member.");
     } finally {
       setLoading(false);
     }
@@ -129,10 +125,15 @@ const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
 
         {/* Modal Body */}
         <div className="px-6 py-5 grid grid-cols-2 gap-4">
+          {submitError && (
+            <p className="col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {submitError}
+            </p>
+          )}
           <div className="col-span-2">
             <Field label="Full Name" name="name" form={form} errors={errors} onChange={handleChange} isView={isView} />
           </div>
-          <Field label="Department"     name="department"     options={DEPARTMENTS} form={form} errors={errors} onChange={handleChange} isView={isView} />
+          <Field label="Department"     name="department"     form={form} errors={errors} onChange={handleChange} isView={isView} />
           <Field label="Specialization" name="specialization" form={form} errors={errors} onChange={handleChange} isView={isView} />
           <div className="col-span-2">
             <Field label="Email" name="email" type="email" form={form} errors={errors} onChange={handleChange} isView={isView} />

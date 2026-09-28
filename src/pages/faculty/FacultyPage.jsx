@@ -4,48 +4,7 @@ import StatusBadge from "../../components/common/StatusBadge";
 import FacultyModal from "../../components/faculty/FacultyModal";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { facultyService } from "../../api/services/facultyService";
-import { Eye, Pencil, Trash2, Filter } from "lucide-react";
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_FACULTY = [
-  {
-    id: "F001",
-    name: "Dr. Maria Santos",
-    department: "Computer Science",
-    email: "maria.santos@pup.edu.ph",
-    phone: "0912-345-6789",
-    specialization: "Data Science",
-    status: "Active",
-  },
-  {
-    id: "F002",
-    name: "Prof. Juan Reyes",
-    department: "Engineering",
-    email: "juan.reyes@pup.edu.ph",
-    phone: "0923-456-7890",
-    specialization: "Mechanical Engineering",
-    status: "Active",
-  },
-  {
-    id: "F003",
-    name: "Dr. Ana Cruz",
-    department: "Mathematics",
-    email: "ana.cruz@pup.edu.ph",
-    phone: "0934-567-8901",
-    specialization: "Statistics",
-    status: "Active",
-  },
-  {
-    id: "F004",
-    name: "Prof. Carlos Garcia",
-    department: "Business",
-    email: "carlos.garcia@pup.edu.ph",
-    phone: "0945-678-9012",
-    specialization: "Marketing",
-    status: "On Leave",
-  },
-];
-// ──────────────────────────────────────────────────────────────────────────────
+import { Eye, Pencil, Trash2 } from "lucide-react";
 
 const FacultyPage = () => {
   const [faculty, setFaculty]           = useState([]);
@@ -58,20 +17,17 @@ const FacultyPage = () => {
   const [confirmOpen, setConfirmOpen]   = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [actionError, setActionError] = useState(null);
 
   const fetchFaculty = async () => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: uncomment when backend is ready
-      // const res = await facultyService.getAll();
-      // setFaculty(res.data);
-
-      // MOCK
-      await new Promise((r) => setTimeout(r, 700));
-      setFaculty(MOCK_FACULTY);
+      const response = await facultyService.getAll();
+      const data = response?.data ?? response;
+      setFaculty(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError("Failed to load faculty members.");
+      setError(err?.response?.data?.message || err?.message || "Failed to load faculty members.");
     } finally {
       setLoading(false);
     }
@@ -106,43 +62,30 @@ const FacultyPage = () => {
 
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
+    setActionError(null);
     try {
-      // TODO: uncomment when backend is ready
-      // await facultyService.delete(deleteTarget.id);
-
-      // MOCK
-      await new Promise((r) => setTimeout(r, 500));
+      await facultyService.delete(deleteTarget.id);
       setFaculty((prev) => prev.filter((f) => f.id !== deleteTarget.id));
       setConfirmOpen(false);
       setDeleteTarget(null);
     } catch (err) {
-      alert("Failed to delete faculty member.");
+      setActionError(err?.response?.data?.message || err?.message || "Failed to delete faculty member.");
     } finally {
       setDeleteLoading(false);
     }
   };
 
   const handleModalSubmit = async (formData) => {
-    try {
-      if (modalMode === "add") {
-        // TODO: await facultyService.create(formData);
-        const newMember = {
-          ...formData,
-          id: `F00${faculty.length + 1}`,
-        };
-        setFaculty((prev) => [...prev, newMember]);
-      } else if (modalMode === "edit") {
-        // TODO: await facultyService.update(selectedFaculty.id, formData);
-        setFaculty((prev) =>
-          prev.map((f) =>
-            f.id === selectedFaculty.id ? { ...f, ...formData } : f
-          )
-        );
-      }
-      setModalOpen(false);
-    } catch (err) {
-      alert("Failed to save faculty member.");
-    }
+    setActionError(null);
+    const response = modalMode === "add"
+      ? await facultyService.create(formData)
+      : await facultyService.update(selectedFaculty.id, formData);
+    const savedFaculty = response?.data ?? response;
+    setFaculty((prev) => modalMode === "add"
+      ? [...prev, savedFaculty]
+      : prev.map((member) => member.id === selectedFaculty.id ? savedFaculty : member)
+    );
+    setModalOpen(false);
   };
 
   const filtered = faculty.filter((f) =>
@@ -167,6 +110,11 @@ const FacultyPage = () => {
       />
 
       <div className="p-6">
+        {actionError && (
+          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {actionError}
+          </p>
+        )}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
 
           {/* Table Header */}
@@ -174,10 +122,7 @@ const FacultyPage = () => {
             <h2 className="text-base font-bold text-gray-800">
               Faculty Management
             </h2>
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-              <Filter size={14} />
-              Filter
-            </button>
+            <p className="text-sm text-gray-500">{faculty.length} faculty member{faculty.length === 1 ? "" : "s"}</p>
           </div>
 
           {/* Table */}
