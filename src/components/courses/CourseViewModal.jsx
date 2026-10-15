@@ -93,7 +93,7 @@ const CourseViewModal = ({ open, data, onClose, onEdit }) => {
             className="flex items-center gap-2 px-4 py-2 text-sm bg-pup-maroon text-white rounded-lg font-medium hover:bg-pup-maroon-dark transition-colors"
           >
             <Pencil size={14} />
-            Edit Course
+            Edit Program
           </button>
         </div>
       </div>

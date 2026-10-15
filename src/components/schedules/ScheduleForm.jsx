@@ -206,7 +206,7 @@ const ScheduleForm = ({
         <InputField label="Start Time" name="startTime" type="time" form={form} errors={errors} onChange={handleChange} />
         <InputField label="End Time"   name="endTime"   type="time" form={form} errors={errors} onChange={handleChange} />
         <SelectField
-          label="Course"
+          label="Program"
           name="course"
           options={courses}
           valueKey="code"

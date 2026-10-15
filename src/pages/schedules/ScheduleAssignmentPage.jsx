@@ -390,7 +390,7 @@ const ScheduleAssignmentPage = () => {
                   <th className="text-left px-6 py-3 font-semibold">Room</th>
                   <th className="text-left px-6 py-3 font-semibold">Day</th>
                   <th className="text-left px-6 py-3 font-semibold">Time</th>
-                  <th className="text-left px-6 py-3 font-semibold">Course & Section</th>
+                  <th className="text-left px-6 py-3 font-semibold">Program & Section</th>
                   <th className="text-left px-6 py-3 font-semibold">Status</th>
                   <th className="text-left px-6 py-3 font-semibold">Actions</th>
                 </tr>

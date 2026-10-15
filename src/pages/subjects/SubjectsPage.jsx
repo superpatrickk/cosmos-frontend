@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 const SUBJECT_TYPES  = ["All Types", "Lecture", "Lecture/Lab", "Laboratory"];
-const ALL_COURSES = "All Courses";
+const ALL_COURSES = "All Programs";
 const ITEMS_PER_PAGE = 6;
 
 const normalizeSubject = (subject) => ({
@@ -70,7 +70,7 @@ const SubjectsPage = () => {
         const data = response?.data ?? response;
         if (mounted) setCourses(Array.isArray(data) ? data : []);
       } catch (err) {
-        if (mounted) setCoursesError(err?.response?.data?.message || err?.message || "Failed to load courses.");
+        if (mounted) setCoursesError(err?.response?.data?.message || err?.message || "Failed to load programs.");
       } finally {
         if (mounted) setCoursesLoading(false);
       }
@@ -85,7 +85,7 @@ const SubjectsPage = () => {
 
   const filtered = useMemo(() => {
     return subjects.filter((s) => {
-      const matchSearch = [s.name, s.code, s.course, s.prerequisite]
+      const matchSearch = [s.name, s.code, s.course]
         .join(" ").toLowerCase()
         .includes(search.toLowerCase());
       const matchType =
@@ -260,7 +260,7 @@ const SubjectsPage = () => {
                     </button>
                   ))}
                   <p className="text-xs font-semibold text-gray-400 uppercase px-2 pt-3 mb-2">
-                    Program / Course
+                    Program
                   </p>
                   {[ALL_COURSES, ...courses].map((course) => (
                     <button
@@ -273,7 +273,7 @@ const SubjectsPage = () => {
                       }`}
                     >
                       {course === ALL_COURSES
-                        ? "All Courses"
+                        ? "All Programs"
                         : `${course.code}${course.name ? ` - ${course.name}` : ""}`}
                     </button>
                   ))}
@@ -287,13 +287,11 @@ const SubjectsPage = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wide">
-                  <th className="text-left px-6 py-3 font-semibold">Subject ID</th>
                   <th className="text-left px-6 py-3 font-semibold">Code</th>
                   <th className="text-left px-6 py-3 font-semibold">Subject Name</th>
                   <th className="text-left px-6 py-3 font-semibold">Units</th>
                   <th className="text-left px-6 py-3 font-semibold">Type</th>
-                  <th className="text-left px-6 py-3 font-semibold">Prerequisite</th>
-                  <th className="text-left px-6 py-3 font-semibold">Course</th>
+                  <th className="text-left px-6 py-3 font-semibold">Program</th>
                   <th className="text-left px-6 py-3 font-semibold">Status</th>
                   <th className="text-left px-6 py-3 font-semibold">Actions</th>
                 </tr>
@@ -301,7 +299,7 @@ const SubjectsPage = () => {
               <tbody>
                 {loading && [...Array(6)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-50 animate-pulse">
-                    {[...Array(9)].map((_, j) => (
+                    {[...Array(7)].map((_, j) => (
                       <td key={j} className="px-6 py-4">
                         <div className="h-4 bg-gray-100 rounded w-20" />
                       </td>
@@ -311,7 +309,7 @@ const SubjectsPage = () => {
 
                 {!loading && error && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-10 text-center text-sm text-red-400">
+                    <td colSpan={7} className="px-6 py-10 text-center text-sm text-red-400">
                       {error}
                     </td>
                   </tr>
@@ -319,7 +317,7 @@ const SubjectsPage = () => {
 
                 {!loading && !error && paginated.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center">
+                    <td colSpan={7} className="px-6 py-12 text-center">
                       <BookMarked size={36} className="text-gray-200 mx-auto mb-2" />
                       <p className="text-sm text-gray-400">No subjects found.</p>
                     </td>
@@ -331,9 +329,6 @@ const SubjectsPage = () => {
                     key={subject.id}
                     className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
                   >
-                    <td className="px-6 py-4 text-xs text-gray-400 font-medium">
-                      {subject.id}
-                    </td>
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 bg-pup-maroon/10 text-pup-maroon text-xs font-bold rounded-lg">
                         {subject.code}
@@ -359,15 +354,6 @@ const SubjectsPage = () => {
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${TYPE_STYLES[subject.type] ?? "bg-gray-100 text-gray-500"}`}>
                         {subject.type}
                       </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {subject.prerequisite === "None" ? (
-                        <span className="text-xs text-gray-400 italic">None</span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded font-medium">
-                          {subject.prerequisite}
-                        </span>
-                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded font-medium">

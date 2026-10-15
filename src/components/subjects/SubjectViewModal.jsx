@@ -12,7 +12,7 @@ const SubjectViewModal = ({ open, data, onClose, onEdit }) => {
 
   const details = [
     { label: "Units",      value: `${data.units} units`,  icon: Layers,         color: "text-blue-600",   bg: "bg-blue-50" },
-    { label: "Course",     value: data.course,            icon: GraduationCap,  color: "text-pup-maroon", bg: "bg-red-50" },
+    { label: "Program",    value: data.course,            icon: GraduationCap,  color: "text-pup-maroon", bg: "bg-red-50" },
     { label: "Year Level", value: data.yearLevel,         icon: Calendar,       color: "text-green-600",  bg: "bg-green-50" },
     { label: "Semester",   value: data.semester,          icon: Calendar,       color: "text-purple-600", bg: "bg-purple-50" },
   ];
@@ -57,20 +57,6 @@ const SubjectViewModal = ({ open, data, onClose, onEdit }) => {
               </span>
             </div>
             <StatusBadge status={data.status} />
-          </div>
-
-          {/* Prerequisite */}
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-              Prerequisite:
-            </span>
-            {data.prerequisite === "None" ? (
-              <span className="text-xs text-gray-400 italic">None</span>
-            ) : (
-              <span className="px-2 py-0.5 bg-pup-maroon/10 text-pup-maroon text-xs font-bold rounded">
-                {data.prerequisite}
-              </span>
-            )}
           </div>
 
           {/* Detail Grid */}

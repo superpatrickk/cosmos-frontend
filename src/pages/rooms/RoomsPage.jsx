@@ -312,7 +312,6 @@ const RoomsPage = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wide">
-                  <th className="text-left px-6 py-3 font-semibold">Room ID</th>
                   <th className="text-left px-6 py-3 font-semibold">Code</th>
                   <th className="text-left px-6 py-3 font-semibold">Room Name</th>
                   <th className="text-left px-6 py-3 font-semibold">Building</th>
@@ -326,7 +325,7 @@ const RoomsPage = () => {
               <tbody>
                 {loading && [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-50 animate-pulse">
-                    {[...Array(8)].map((_, j) => (
+                    {[...Array(7)].map((_, j) => (
                       <td key={j} className="px-6 py-4">
                         <div className="h-4 bg-gray-100 rounded w-20" />
                       </td>
@@ -336,7 +335,7 @@ const RoomsPage = () => {
 
                 {!loading && error && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-10 text-center text-sm text-red-400">
+                    <td colSpan={7} className="px-6 py-10 text-center text-sm text-red-400">
                       {error}
                     </td>
                   </tr>
@@ -344,7 +343,7 @@ const RoomsPage = () => {
 
                 {!loading && !error && paginated.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center">
+                    <td colSpan={7} className="px-6 py-12 text-center">
                       <DoorOpen size={36} className="text-gray-200 mx-auto mb-2" />
                       <p className="text-sm text-gray-400">No rooms found.</p>
                       {hasActiveFilter && (
@@ -364,9 +363,6 @@ const RoomsPage = () => {
                     key={room.id}
                     className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
                   >
-                    <td className="px-6 py-4 text-xs text-gray-400 font-medium">
-                      {room.id}
-                    </td>
                     <td className="px-6 py-4 text-xs text-gray-400 font-medium">{room.code || (room.id ? `R${room.id}` : "")}</td>
                     <td className="px-6 py-4">
                       <div>

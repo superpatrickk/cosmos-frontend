@@ -10,9 +10,9 @@ import {
 const navItems = [
   { label: "Dashboard",           path: "/dashboard",        icon: LayoutDashboard },
   { label: "Faculty Members",     path: "/faculty",          icon: Users },
-  { label: "Courses",             path: "/courses",          icon: GraduationCap },
+  { label: "Programs",            path: "/courses",          icon: GraduationCap },
   { label: "Curriculum",          path: "/curriculum",       icon: BookMarked },
-  { label: "Subjects",            path: "/subjects",         icon: BookOpen },
+  { label: "Courses",            path: "/subjects",         icon: BookOpen },
   { label: "Rooms",               path: "/rooms",            icon: DoorOpen },
   { label: "Schedule Assignment", path: "/schedules",        icon: CalendarDays },
   { label: "Faculty Schedule",    path: "/faculty-schedule", icon: CalendarCheck },

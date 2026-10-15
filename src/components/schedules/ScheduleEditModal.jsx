@@ -141,7 +141,7 @@ const ScheduleEditModal = ({
           <Field label="Day"      name="day"         options={days} form={form} errors={errors} onChange={handleChange} />
           <Field label="Start Time" name="startTime" type="time" form={form} errors={errors} onChange={handleChange} />
           <Field label="End Time"   name="endTime"   type="time" form={form} errors={errors} onChange={handleChange} />
-          <Field label="Course"   name="course"      options={courses}  valueKey="code"  labelKey="code" form={form} errors={errors} onChange={handleChange} />
+          <Field label="Program"  name="course"      options={courses}  valueKey="code"  labelKey="code" form={form} errors={errors} onChange={handleChange} />
           <Field label="Section"  name="section" form={form} errors={errors} onChange={handleChange} />
           <Field label="Semester" name="semester"    options={SEMESTERS} form={form} errors={errors} onChange={handleChange} />
           <Field label="Status"   name="status"      options={["Active", "Inactive"]} form={form} errors={errors} onChange={handleChange} />

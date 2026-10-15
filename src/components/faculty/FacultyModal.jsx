@@ -3,9 +3,8 @@ import { X } from "lucide-react";
 
 const EMPTY_FORM = {
   name: "",
-  department: "",
+  programs: [],
   email: "",
-  phone: "",
   specialization: "",
   status: "Active",
 };
@@ -45,10 +44,9 @@ const Field = ({ label, name, type = "text", options, form, errors, onChange, is
         className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${errors[name] ? "border-red-400" : "border-gray-200"}`}
       />
     )}
-    {/* Show notification hint for email field only */}
     {!isView && name === "email" && (
       <p className="text-xs text-gray-400">
-        📧 Schedule notifications will be sent to this address.
+        Optional. Schedule notifications can be sent when an email is provided.
       </p>
     )}
     {errors[name] && (
@@ -57,7 +55,50 @@ const Field = ({ label, name, type = "text", options, form, errors, onChange, is
   </div>
 );
 
-const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
+const ProgramField = ({ programs, selected, isView, loading, error, onToggle, fieldError }) => {
+  if (isView) {
+    const selectedPrograms = selected.map((code) => {
+      const program = programs.find((item) => item.code === code);
+      return program ? `${program.code} - ${program.name}` : code;
+    });
+    return (
+      <div className="col-span-2 flex flex-col gap-1">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Program</span>
+        <p className="py-1 text-sm font-medium text-gray-800">{selectedPrograms.join(", ") || "—"}</p>
+      </div>
+    );
+  }
+
+  return (
+    <fieldset className="col-span-2 flex flex-col gap-2">
+      <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">Program</legend>
+      {loading ? (
+        <p className="text-sm text-gray-500">Loading programs...</p>
+      ) : error ? (
+        <p className="text-sm text-red-600" role="alert">{error}</p>
+      ) : programs.length === 0 ? (
+        <p className="text-sm text-gray-500">No active programs found.</p>
+      ) : (
+        <div className="grid max-h-36 grid-cols-2 gap-2 overflow-y-auto rounded-lg border border-gray-200 p-3">
+          {programs.map((program) => (
+            <label key={program.id} className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={selected.includes(program.code)}
+                onChange={() => onToggle(program.code)}
+                className="mt-0.5 accent-pup-maroon"
+              />
+              <span>{program.code} - {program.name}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      {fieldError && <p className="text-xs text-red-500">{fieldError}</p>}
+    </fieldset>
+  );
+};
+
+const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false, programsError, onClose, onSubmit }) => {
   const [form, setForm]     = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors]   = useState({});
@@ -65,11 +106,17 @@ const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
 
   useEffect(() => {
     if (open) {
-      setForm(data ? { ...data } : EMPTY_FORM);
+      const selectedPrograms = data?.programs?.length
+        ? data.programs
+        : data?.department?.split(",").map((program) => program.trim()).filter(Boolean) ?? [];
+      setForm(data
+        ? { ...EMPTY_FORM, ...data, programs: selectedPrograms, email: data.email || "" }
+        : { ...EMPTY_FORM, programs: [] }
+      );
       setErrors({});
       setSubmitError("");
     }
-  }, [open]);
+  }, [open, data]);
 
   if (!open) return null;
 
@@ -79,10 +126,8 @@ const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
   const validate = () => {
     const e = {};
     if (!form.name.trim())           e.name = "Name is required.";
-    if (!form.department.trim())     e.department = "Department is required.";
-    if (!form.email.trim())          e.email = "Email is required.";
-    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email format.";
-    if (!form.phone.trim())          e.phone = "Phone is required.";
+    if (!form.programs.length)       e.programs = "Select at least one program.";
+    if (form.email.trim() && !/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email format.";
     if (!form.specialization.trim()) e.specialization = "Specialization is required.";
     return e;
   };
@@ -93,13 +138,30 @@ const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
+  const toggleProgram = (programCode) => {
+    setForm((prev) => ({
+      ...prev,
+      programs: prev.programs.includes(programCode)
+        ? prev.programs.filter((program) => program !== programCode)
+        : [...prev.programs, programCode],
+    }));
+    if (errors.programs) setErrors((prev) => ({ ...prev, programs: null }));
+  };
+
   const handleSubmit = async () => {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
     setSubmitError("");
     try {
-      await onSubmit(form);
+      await onSubmit({
+        name: form.name.trim(),
+        programs: form.programs,
+        department: form.programs.join(", "),
+        email: form.email.trim() || null,
+        specialization: form.specialization.trim(),
+        status: form.status,
+      });
     } catch (err) {
       setSubmitError(err?.response?.data?.message || err?.message || "Failed to save faculty member.");
     } finally {
@@ -132,13 +194,21 @@ const FacultyModal = ({ open, mode, data, onClose, onSubmit }) => {
           )}
           <div className="col-span-2">
             <Field label="Full Name" name="name" form={form} errors={errors} onChange={handleChange} isView={isView} />
+            <p className="mt-1 text-xs text-gray-400">Enter as Lastname, Firstname, Middle Initial.</p>
           </div>
-          <Field label="Department"     name="department"     form={form} errors={errors} onChange={handleChange} isView={isView} />
+          <ProgramField
+            programs={programs}
+            selected={form.programs}
+            isView={isView}
+            loading={programsLoading}
+            error={programsError}
+            fieldError={errors.programs}
+            onToggle={toggleProgram}
+          />
           <Field label="Specialization" name="specialization" form={form} errors={errors} onChange={handleChange} isView={isView} />
           <div className="col-span-2">
             <Field label="Email" name="email" type="email" form={form} errors={errors} onChange={handleChange} isView={isView} />
           </div>
-          <Field label="Phone"  name="phone" form={form} errors={errors} onChange={handleChange} isView={isView} />
           <Field label="Status" name="status" options={STATUSES} form={form} errors={errors} onChange={handleChange} isView={isView} />
         </div>
 

@@ -24,7 +24,7 @@ const formatTime = (value) => {
   return `${hour % 12 || 12}:${match[2]} ${suffix}`;
 };
 
-const TodaySchedule = ({ schedule, loading, error, activeDay }) => {
+const TodaySchedule = ({ schedule, loading, error, activeDay, search = "" }) => {
   if (loading) {
     return (
       <div className="divide-y divide-gray-50">
@@ -46,7 +46,7 @@ const TodaySchedule = ({ schedule, loading, error, activeDay }) => {
       <div className="px-6 py-10 text-center">
         <Clock size={32} className="text-gray-200 mx-auto mb-2" />
         <p className="text-sm text-gray-400">
-          No classes scheduled for {activeDay}.
+          {search ? `No classes match “${search}” on ${activeDay}.` : `No classes scheduled for ${activeDay}.`}
         </p>
       </div>
     );

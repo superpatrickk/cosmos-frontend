@@ -19,6 +19,7 @@ const getTodayName = () => {
 const DashboardPage = () => {
   const [stats, setStats]           = useState(null);
   const [schedule, setSchedule]     = useState([]);
+  const [search, setSearch]         = useState("");
   const [activeDay, setActiveDay]   = useState(getTodayName());
   const [statsLoading, setStatsLoading]       = useState(true);
   const [scheduleLoading, setScheduleLoading] = useState(true);
@@ -64,6 +65,24 @@ const DashboardPage = () => {
     fetchSchedule();
     return () => { mounted = false; };
   }, [activeDay]);
+
+  const searchQuery = search.trim().toLowerCase();
+  const filteredSchedule = schedule.filter((item) =>
+    [
+      item.code,
+      item.subjectName,
+      item.courseCode,
+      item.section,
+      item.faculty,
+      item.room,
+      item.startTime,
+      item.endTime,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(searchQuery)
+  );
 
   const totalRooms = Number(stats?.totalRooms || 0);
   const occupiedRooms = Number(stats?.occupiedRooms || 0);
@@ -114,6 +133,8 @@ const DashboardPage = () => {
     <>
       <TopBar
         title="Dashboard"
+        search={search}
+        onSearch={setSearch}
         subtitle={new Intl.DateTimeFormat("en", {
           weekday: "long",
           year: "numeric",
@@ -149,7 +170,7 @@ const DashboardPage = () => {
             <div>
               <h2 className="text-base font-bold text-gray-800">Weekly Schedule</h2>
               <p className="text-xs text-gray-400 mt-0.5">
-                {activeDay}{scheduleLoading ? " · Loading classes" : ` · ${schedule.length} class${schedule.length === 1 ? "" : "es"}`}
+                {activeDay}{scheduleLoading ? " · Loading classes" : ` · ${filteredSchedule.length}${searchQuery ? ` of ${schedule.length}` : ""} class${filteredSchedule.length === 1 ? "" : "es"}`}
               </p>
             </div>
           </div>
@@ -175,10 +196,11 @@ const DashboardPage = () => {
 
           {/* Schedule List */}
           <TodaySchedule
-            schedule={schedule}
+            schedule={filteredSchedule}
             loading={scheduleLoading}
             error={scheduleError}
             activeDay={activeDay}
+            search={searchQuery}
           />
 
         </div>

@@ -91,7 +91,7 @@ const SubjectModal = ({ open, mode, data, courses = [], coursesLoading = false, 
     const e = {};
     if (!form.code.trim())        e.code = "Subject code is required.";
     if (!form.name.trim())        e.name = "Subject name is required.";
-    if (!form.course.trim())      e.course = "Course is required.";
+    if (!form.course.trim())      e.course = "Program is required.";
     if (!form.description.trim()) e.description = "Description is required.";
     if (!form.units || form.units < 1) e.units = "Units must be at least 1.";
     return e;
@@ -150,17 +150,16 @@ const SubjectModal = ({ open, mode, data, courses = [], coursesLoading = false, 
           <Field label="Subject Name" name="name"  span={2} form={form} errors={errors} onChange={handleChange} />
           <Field label="Type"         name="type"  options={TYPES} form={form} errors={errors} onChange={handleChange} />
           <Field
-            label="Course"
+            label="Program"
             name="course"
             options={courseOptions}
-            placeholder={coursesLoading ? "Loading courses..." : coursesError ? "Courses unavailable" : "Select course"}
+            placeholder={coursesLoading ? "Loading programs..." : coursesError ? "Programs unavailable" : "Select program"}
             disabled={coursesLoading || Boolean(coursesError) || (!activeCourses.length && !form.course)}
-            helpText={coursesError ? "Course options could not be loaded from the database." : ""}
+            helpText={coursesError ? "Program options could not be loaded from the database." : ""}
             form={form}
             errors={errors}
             onChange={handleChange}
           />
-          <Field label="Prerequisite" name="prerequisite" form={form} errors={errors} onChange={handleChange} />
           <Field label="Status"       name="status" options={STATUSES} form={form} errors={errors} onChange={handleChange} />
           <Field label="Year Level"   name="yearLevel"  options={YEAR_LEVELS} form={form} errors={errors} onChange={handleChange} />
           <Field label="Semester"     name="semester"   options={SEMESTERS} form={form} errors={errors} onChange={handleChange} />

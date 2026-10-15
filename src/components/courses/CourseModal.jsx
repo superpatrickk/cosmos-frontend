@@ -98,17 +98,17 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
 
   if (!open) return null;
 
-  const title = mode === "add" ? "Add New Course" : "Edit Course";
+  const title = mode === "add" ? "Add New Program" : "Edit Program";
 
   const validate = () => {
     const e = {};
 
     if (!form.code.trim()) {
-      e.code = "Course code is required.";
+      e.code = "Program code is required.";
     }
 
     if (!form.name.trim()) {
-      e.name = "Course name is required.";
+      e.name = "Program name is required.";
     }
 
     if (!form.department.trim()) {
@@ -167,7 +167,7 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
             </h2>
 
             <p className="text-xs text-gray-400 mt-0.5">
-              Fill in the course details below
+              Fill in the program details below
             </p>
           </div>
 
@@ -184,7 +184,7 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
         <div className="px-6 py-5 grid grid-cols-2 gap-4 overflow-y-auto">
 
           <InputField
-            label="Course Code"
+            label="Program Code"
             name="code"
             span={1}
             form={form}
@@ -202,7 +202,7 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
           />
 
           <InputField
-            label="Course Name"
+            label="Program Name"
             name="name"
             span={2}
             form={form}
@@ -269,7 +269,7 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
             {loading
               ? "Saving..."
               : mode === "add"
-                ? "Add Course"
+                ? "Add Program"
                 : "Save Changes"}
           </button>
 

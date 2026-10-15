@@ -98,7 +98,7 @@ const CoursesPage = () => {
       await new Promise((r) => setTimeout(r, 700));
       setCourses(MOCK_COURSES);
     } catch {
-      setError("Failed to load courses.");
+      setError("Failed to load programs.");
     } finally {
       setLoading(false);
     }
@@ -162,7 +162,7 @@ const CoursesPage = () => {
       setCourses((prev) => prev.filter((c) => c.id !== deleteTarget.id));
       setConfirmOpen(false);
     } catch {
-      alert("Failed to delete course.");
+      alert("Failed to delete program.");
     } finally {
       setDeleteLoading(false);
     }
@@ -192,10 +192,10 @@ const CoursesPage = () => {
   return (
     <>
       <TopBar
-        title="Courses"
+        title="Programs"
         subtitle="Manage and monitor classroom occupancy"
         onAddNew={handleAdd}
-        addNewLabel="Add Course"
+        addNewLabel="Add Program"
         search={search}
         onSearch={setSearch}
       />
@@ -206,7 +206,7 @@ const CoursesPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             {
-              label: "Total Courses", value: courses.length,
+              label: "Total Programs", value: courses.length,
               icon: GraduationCap, color: "text-pup-maroon", bg: "bg-red-50",
             },
             {
@@ -239,9 +239,9 @@ const CoursesPage = () => {
           {/* Table Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
-              <h2 className="text-base font-bold text-gray-800">Course Management</h2>
+              <h2 className="text-base font-bold text-gray-800">Program Management</h2>
               <p className="text-xs text-gray-400 mt-0.5">
-                {filtered.length} course{filtered.length !== 1 ? "s" : ""} found
+                {filtered.length} program{filtered.length !== 1 ? "s" : ""} found
               </p>
             </div>
             <div className="relative">
@@ -289,9 +289,8 @@ const CoursesPage = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wide">
-                  <th className="text-left px-6 py-3 font-semibold">Course ID</th>
                   <th className="text-left px-6 py-3 font-semibold">Code</th>
-                  <th className="text-left px-6 py-3 font-semibold">Course Name</th>
+                  <th className="text-left px-6 py-3 font-semibold">Program Name</th>
                   <th className="text-left px-6 py-3 font-semibold">Department</th>
                   <th className="text-left px-6 py-3 font-semibold">Duration</th>
                   <th className="text-left px-6 py-3 font-semibold">Students</th>
@@ -302,7 +301,7 @@ const CoursesPage = () => {
               <tbody>
                 {loading && [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-50 animate-pulse">
-                    {[...Array(8)].map((_, j) => (
+                    {[...Array(7)].map((_, j) => (
                       <td key={j} className="px-6 py-4">
                         <div className="h-4 bg-gray-100 rounded w-24" />
                       </td>
@@ -312,7 +311,7 @@ const CoursesPage = () => {
 
                 {!loading && error && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-10 text-center text-sm text-red-400">
+                    <td colSpan={7} className="px-6 py-10 text-center text-sm text-red-400">
                       {error}
                     </td>
                   </tr>
@@ -320,9 +319,9 @@ const CoursesPage = () => {
 
                 {!loading && !error && paginated.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center">
+                    <td colSpan={7} className="px-6 py-12 text-center">
                       <GraduationCap size={36} className="text-gray-200 mx-auto mb-2" />
-                      <p className="text-sm text-gray-400">No courses found.</p>
+                      <p className="text-sm text-gray-400">No programs found.</p>
                     </td>
                   </tr>
                 )}
@@ -332,9 +331,6 @@ const CoursesPage = () => {
                     key={course.id}
                     className="border-b border-gray-50 hover:bg-gray-50 transition-colors group"
                   >
-                    <td className="px-6 py-4 font-medium text-gray-500 text-xs">
-                      {course.id}
-                    </td>
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 bg-pup-maroon/10 text-pup-maroon text-xs font-bold rounded-lg">
                         {course.code}
@@ -403,7 +399,7 @@ const CoursesPage = () => {
               <p className="text-xs text-gray-400">
                 Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–
                 {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of{" "}
-                {filtered.length} courses
+                {filtered.length} programs
               </p>
               <div className="flex items-center gap-1">
                 <button
@@ -464,7 +460,7 @@ const CoursesPage = () => {
       {/* Delete Confirm */}
       <ConfirmDialog
         open={confirmOpen}
-        title="Delete Course"
+        title="Delete Program"
         message={`Are you sure you want to delete "${deleteTarget?.name}"? All associated subjects and schedules may be affected.`}
         confirmLabel="Delete"
         confirmStyle="danger"
