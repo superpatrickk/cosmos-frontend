@@ -1,20 +1,27 @@
+
 import Sidebar from "./Sidebar";
-import cosmosPanelArt from "../../assets/95557ce7-472e-4bef-b73e-b5036a41e6ae.png";
+import cosmosPanelArt from "../../assets/cosmos-logo-final.png";
 
 const MainLayout = ({ children }) => {
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-gray-100">
       <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <main
-          className="flex-1 overflow-y-auto bg-gray-100"
+
+      <div className="relative flex flex-1 flex-col overflow-hidden">
+        {/* Background artwork */}
+        <div
+          className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage: `linear-gradient(rgba(243, 244, 246, 0.9), rgba(243, 244, 246, 0.9)), url(${cosmosPanelArt})`,
-            backgroundPosition: "center, center",
-            backgroundRepeat: "no-repeat, no-repeat",
-            backgroundSize: "cover, min(900px, 72vw) auto",
+            backgroundImage: `url(${cosmosPanelArt})`,
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "min(900px, 72vw) auto",
+            opacity: 1.55,
           }}
-        >
+        />
+
+        {/* Main content */}
+        <main className="relative z-10 flex-1 overflow-y-auto bg-gray-100/70">
           {children}
         </main>
       </div>

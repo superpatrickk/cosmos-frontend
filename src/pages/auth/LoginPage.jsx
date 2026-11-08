@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { Eye, EyeOff } from "lucide-react";
-import cosmosPanelArt from "../../assets/95557ce7-472e-4bef-b73e-b5036a41e6ae.png";
-import pupLogo from "../../../Polytechnic_University_of_the_Philippines_Bataan_Logo.png";
+import campusBackground from "../../assets/campus-background.png";
+import cosmosLogo from "../../assets/cosmos-logo-final.png";
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -30,72 +30,92 @@ const LoginPage = () => {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center bg-pup-maroon/10 px-4 py-8"
+      className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8"
       style={{
-        backgroundImage: `linear-gradient(rgba(243, 244, 246, 0.9), rgba(243, 244, 246, 0.9)), url(${cosmosPanelArt})`,
-        backgroundPosition: "center, center",
-        backgroundRepeat: "no-repeat, no-repeat",
-        backgroundSize: "cover, min(900px, 72vw) auto",
+        backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.42), rgba(245, 240, 236, 0.56)), url(${campusBackground})`,
+        backgroundPosition: "center bottom",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "cover",
       }}
     >
-      <div className="w-full max-w-sm rounded-2xl border border-pup-maroon-dark bg-pup-maroon p-10 text-center text-white shadow-xl">
-        <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-white p-1.5">
-          <img
-            src={pupLogo}
-            alt="Polytechnic University of the Philippines Bataan"
-            className="h-full w-full object-contain"
-          />
-        </div>
-        <h1 className="mb-1 text-2xl font-bold">COSMOS</h1>
-        <p className="mb-6 text-xs text-white/75">
-          Classroom Occupancy and Scheduling Management Optimization System
-        </p>
-        <form onSubmit={handleSubmit} className="space-y-4 text-left">
-          <div>
-            <label htmlFor="username" className="mb-1 block text-xs font-semibold text-white/85">Username</label>
-            <input
-              id="username"
-              name="username"
-              autoComplete="username"
-              required
-              value={credentials.username}
-              onChange={(event) => setCredentials((prev) => ({ ...prev, username: event.target.value }))}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
-            />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(122,18,40,0.10),_transparent_34%)]" />
+
+      <div className="relative mt-[-8vh] w-full max-w-[480px] rounded-[28px] border border-white/20 bg-white/15 shadow-[0_35px_80px_rgba(15,23,42,0.04)] backdrop-blur-[0.5px]">
+        <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,_rgba(255,255,255,0.35),_rgba(255,255,255,0.10))] p-6 sm:p-8">
+          <div className="mb-4 text-center">
+            <div className="mx-auto mb-3 h-px w-14 bg-gradient-to-r from-transparent via-[#7a1228] to-transparent" />
+            <p className="text-[9px] font-semibold uppercase tracking-[0.48em] text-slate-600">
+              Polytechnic University of the Philippines
+            </p>
+            <p className="mt-2 text-[9px] font-medium uppercase tracking-[0.28em] text-[#7a1228]">
+              Bataan Campus
+            </p>
           </div>
-          <div>
-            <label htmlFor="password" className="mb-1 block text-xs font-semibold text-white/85">Password</label>
-            <div className="relative">
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                required
-                value={credentials.password}
-                onChange={(event) => setCredentials((prev) => ({ ...prev, password: event.target.value }))}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 pr-10 text-sm text-gray-900 placeholder:text-gray-400 focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((visible) => !visible)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-pup-maroon"
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+
+          <div className="mb-3 text-center">
+            <div className="mx-auto mb-2 flex items-center justify-center bg-transparent">
+              <img src={cosmosLogo} alt="COSMOS logo" className="h-32 w-44 object-contain opacity-90" style={{ background: 'transparent', border: 'none', boxShadow: 'none' }} />
             </div>
+            <p className="mt-2 text-[9px] font-medium uppercase tracking-[0.18em] text-slate-600">
+              Academic Management Portal
+            </p>
           </div>
-          {error && <p role="alert" className="text-left text-xs text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-white py-2.5 text-sm font-semibold text-pup-maroon transition-colors hover:bg-gray-100 disabled:cursor-wait disabled:opacity-60"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
+          
+
+          <form onSubmit={handleSubmit} className="mt-5 space-y-4 text-left">
+            <div>
+              <label htmlFor="username" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-700">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                autoComplete="username"
+                required
+                value={credentials.username}
+                onChange={(event) => setCredentials((prev) => ({ ...prev, username: event.target.value }))}
+                className="w-full rounded-[12px] border border-slate-300/80 bg-white/70 px-4 py-3 text-[15px] text-slate-800 placeholder:text-slate-400 shadow-[inset_0_1px_2px_rgba(148,163,184,0.12)] transition focus:border-[#7a1228] focus:bg-white/80 focus:outline-none focus:ring-2 focus:ring-[#7a1228]/10"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-700">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  value={credentials.password}
+                  onChange={(event) => setCredentials((prev) => ({ ...prev, password: event.target.value }))}
+                  className="w-full rounded-[12px] border border-slate-300/80 bg-white/70 px-4 py-3 pr-11 text-[15px] text-slate-800 placeholder:text-slate-400 shadow-[inset_0_1px_2px_rgba(148,163,184,0.12)] transition focus:border-[#7a1228] focus:bg-white/80 focus:outline-none focus:ring-2 focus:ring-[#7a1228]/10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 transition-colors hover:text-[#7a1228]"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {error && <p role="alert" className="text-left text-xs font-medium text-red-600">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-1 w-full rounded-[12px] bg-[linear-gradient(135deg,_#8b1f2f_0%,_#6f1127_100%)] py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white shadow-[0_12px_28px_rgba(108,16,36,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_30px_rgba(108,16,36,0.22)] disabled:cursor-wait disabled:opacity-70"
+            >
+              {loading ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

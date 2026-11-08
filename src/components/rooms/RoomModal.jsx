@@ -4,16 +4,16 @@ import { X } from "lucide-react";
 
 import { useEffect as useEffectOnce } from "react";
 
+const FLOOR_OPTIONS = ["Basement", "First Floor", "Second Floor", "Court"];
+
 const EMPTY_FORM = {
   name: "",
   code: "",
-  building: "",
+  building: "Main Building",
   floor: "",
   capacity: 30,
   status: "Available",
 };
-
-// options will be fetched from backend
 
 const Field = ({ label, name, type = "text", options, span = 1, form, errors, onChange }) => (
   <div className={`flex flex-col gap-1 ${span === 2 ? "col-span-2" : ""}`}>
@@ -58,7 +58,7 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
   const [errors, setErrors]   = useState({});
   const [loading, setLoading] = useState(false);
   const [buildings, setBuildings] = useState([]);
-  const [floors, setFloors] = useState([]);
+  const [floors, setFloors] = useState(FLOOR_OPTIONS);
   const [statuses, setStatuses] = useState([]);
   const [metaLoading, setMetaLoading] = useState(false);
   const [metaError, setMetaError] = useState(null);
@@ -78,7 +78,7 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
         const d = res?.data ?? res;
         if (!mounted) return;
         setBuildings(d?.buildings ?? []);
-        setFloors(d?.floors ?? []);
+        setFloors(d?.floors?.length ? d.floors : FLOOR_OPTIONS);
         // types removed from metadata
         setStatuses(d?.statuses ?? []);
         // amenities removed from metadata
@@ -103,8 +103,7 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
   const validate = () => {
     const e = {};
     if (!form.code || !form.code.trim()) e.code = "Room code is required.";
-    if (!form.name.trim())     e.name     = "Room name is required.";
-    if (!form.building.trim()) e.building = "Building is required.";
+    if (!form.name.trim())     e.name     = "Room description is required.";
     if (!form.floor.trim())    e.floor    = "Floor is required.";
     if (!form.capacity || form.capacity < 1) e.capacity = "Capacity must be at least 1.";
     return e;
@@ -122,8 +121,16 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
-    try { await onSubmit(form); }
-    finally { setLoading(false); }
+    try {
+      const safeForm = {
+        ...form,
+        building: form.building?.trim() || "Main Building",
+        status: form.status || "Available",
+      };
+      await onSubmit(safeForm);
+    } finally {
+      setLoading(false);
+    }
   };
 
   
@@ -152,13 +159,11 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
 
         {/* Body */}
         <div className="px-6 py-5 overflow-y-auto space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-            <Field label="Room Code"  name="code"     form={form} errors={errors} onChange={handleChange} />
-            <Field label="Room Name"  name="name"     span={2} form={form} errors={errors} onChange={handleChange} />
-            <Field label="Building"   name="building" options={buildings} span={2} form={form} errors={errors} onChange={handleChange} />
-            <Field label="Floor"      name="floor"    options={floors} form={form} errors={errors} onChange={handleChange} />
-            <Field label="Capacity"   name="capacity" type="number" form={form} errors={errors} onChange={handleChange} />
-            <Field label="Status"     name="status"   options={statuses} form={form} errors={errors} onChange={handleChange} />
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Code" name="code" form={form} errors={errors} onChange={handleChange} />
+            <Field label="Room Description" name="name" span={2} form={form} errors={errors} onChange={handleChange} />
+            <Field label="Floor" name="floor" options={floors} form={form} errors={errors} onChange={handleChange} />
+            <Field label="Capacity" name="capacity" type="number" form={form} errors={errors} onChange={handleChange} />
           </div>
         </div>
 

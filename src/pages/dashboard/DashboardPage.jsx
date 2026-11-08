@@ -163,7 +163,7 @@ const DashboardPage = () => {
         </div>
 
         {/* Weekly Schedule */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="rounded-2xl border border-white/40 bg-white/70 shadow-[0_10px_25px_rgba(15,23,42,0.05)] backdrop-blur-[1px]">
 
           {/* Section Header */}
           <div className="flex items-center justify-between px-6 pt-5 pb-3">
@@ -176,7 +176,7 @@ const DashboardPage = () => {
           </div>
 
           {/* Day Navigator Tabs */}
-          <div className="flex gap-1 px-6 pb-3 border-b border-gray-100">
+          <div className="flex gap-1 px-6 pb-3 border-b border-gray-200/70">
             {DAYS.map((day) => (
               <button
                 key={day}
@@ -185,7 +185,7 @@ const DashboardPage = () => {
                   px-3 py-1.5 rounded-full text-sm font-medium transition-colors
                   ${activeDay === day
                     ? "bg-pup-maroon text-white"
-                    : "text-gray-500 hover:bg-gray-100"
+                    : "text-gray-500 hover:bg-white/50"
                   }
                 `}
               >

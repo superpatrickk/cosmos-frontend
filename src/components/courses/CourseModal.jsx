@@ -4,23 +4,67 @@ import { X } from "lucide-react";
 const EMPTY_FORM = {
   code: "",
   name: "",
-  department: "",
-  duration: "4 years",
-  status: "Active",
-  description: "",
-  yearEstablished: new Date().getFullYear(),
+  duration: "",
 };
 
-const DEPARTMENTS = [
-  "College of Computer Science",
-  "College of Engineering",
-  "College of Business",
-  "College of Science",
-  "College of Arts and Letters",
-];
+const DURATIONS = [2, 3, 4, 5];
 
-const DURATIONS = ["2 years", "3 years", "4 years", "5 years"];
-const STATUSES = ["Active", "Inactive"];
+const DurationField = ({ value, onChange }) => {
+  const numericValue = Number(String(value || "").match(/\d+/)?.[0] || 0);
+
+  const setDuration = (nextYears) => {
+    const safeYears = Math.max(1, Math.min(10, Number(nextYears) || 1));
+    onChange(`${safeYears} ${safeYears === 1 ? "year" : "years"}`);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Duration</label>
+
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <label className="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">
+              Program length
+            </label>
+            <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={numericValue || ""}
+                onChange={(event) => setDuration(event.target.value || "")}
+                className="w-20 border-0 bg-transparent px-3 py-2.5 text-lg font-semibold text-slate-800 outline-none"
+              />
+              <div className="flex h-10 items-center border-l border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+                {!numericValue ? "years" : numericValue === 1 ? "year" : "years"}
+              </div>
+            </div>
+          </div>
+
+          <div className="w-px self-stretch bg-slate-200" />
+
+          <div className="flex flex-wrap gap-2">
+            {DURATIONS.map((years) => (
+              <button
+                key={years}
+                type="button"
+                onClick={() => setDuration(years)}
+                className={`rounded-full border px-2.5 py-1.5 text-xs font-semibold transition ${
+                  numericValue === years
+                    ? "border-pup-maroon bg-pup-maroon text-white shadow-sm"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                {years} yrs
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const InputField = ({
   label,
@@ -33,27 +77,34 @@ const InputField = ({
   onChange,
 }) => (
   <div className={`flex flex-col gap-1 ${span === 2 ? "col-span-2" : ""}`}>
-    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+    <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
       {label}
     </label>
 
     {options ? (
-      <select
-        name={name}
-        value={form[name]}
-        onChange={onChange}
-        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
-          errors[name] ? "border-red-400" : "border-gray-200"
-        }`}
-      >
-        {!form[name] && <option value="">Select {label}</option>}
+      <div className="relative">
+        <select
+          name={name}
+          value={form[name]}
+          onChange={onChange}
+          className={`w-full appearance-none rounded-lg border bg-white px-3 py-2.5 pr-9 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
+            errors[name] ? "border-red-400" : "border-gray-200"
+          }`}
+        >
+          {!form[name] && <option value="">Select {label}</option>}
 
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path fillRule="evenodd" d="M5.25 7.5 10 12.25 14.75 7.5H5.25Z" clipRule="evenodd" />
+          </svg>
+        </span>
+      </div>
     ) : type === "textarea" ? (
       <textarea
         name={name}
@@ -61,7 +112,7 @@ const InputField = ({
         onChange={onChange}
         rows={3}
         placeholder={`Enter ${label.toLowerCase()}...`}
-        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition resize-none ${
+        className={`resize-none rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
           errors[name] ? "border-red-400" : "border-gray-200"
         }`}
       />
@@ -72,7 +123,7 @@ const InputField = ({
         value={form[name]}
         onChange={onChange}
         placeholder={`Enter ${label.toLowerCase()}...`}
-        className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
+        className={`rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition ${
           errors[name] ? "border-red-400" : "border-gray-200"
         }`}
       />
@@ -111,12 +162,8 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
       e.name = "Program name is required.";
     }
 
-    if (!form.department.trim()) {
-      e.department = "Department is required.";
-    }
-
-    if (!form.description.trim()) {
-      e.description = "Description is required.";
+    if (!form.duration.trim()) {
+      e.duration = "Duration is required.";
     }
 
     return e;
@@ -156,21 +203,18 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/10 backdrop-blur-[2px]">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
 
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <div>
             <h2 className="text-base font-bold text-gray-800">
               {title}
             </h2>
-
             <p className="text-xs text-gray-400 mt-0.5">
               Fill in the program details below
             </p>
           </div>
-
           <button
             type="button"
             onClick={onClose}
@@ -180,11 +224,11 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-5 grid grid-cols-2 gap-4 overflow-y-auto">
+        <div className="px-6 py-5 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-4">
 
           <InputField
-            label="Program Code"
+            label="Code"
             name="code"
             span={1}
             form={form}
@@ -192,14 +236,12 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
             onChange={handleChange}
           />
 
-          <InputField
-            label="Status"
-            name="status"
-            options={STATUSES}
-            form={form}
-            errors={errors}
-            onChange={handleChange}
-          />
+          <div className="col-span-2">
+            <DurationField
+              value={form.duration}
+              onChange={(nextValue) => setForm((prev) => ({ ...prev, duration: nextValue }))}
+            />
+          </div>
 
           <InputField
             label="Program Name"
@@ -209,47 +251,9 @@ const CourseModal = ({ open, mode, data, onClose, onSubmit }) => {
             errors={errors}
             onChange={handleChange}
           />
-
-          <InputField
-            label="Department"
-            name="department"
-            options={DEPARTMENTS}
-            span={2}
-            form={form}
-            errors={errors}
-            onChange={handleChange}
-          />
-
-          <InputField
-            label="Duration"
-            name="duration"
-            options={DURATIONS}
-            form={form}
-            errors={errors}
-            onChange={handleChange}
-          />
-
-          <InputField
-            label="Year Established"
-            name="yearEstablished"
-            type="number"
-            form={form}
-            errors={errors}
-            onChange={handleChange}
-          />
-
-          <InputField
-            label="Description"
-            name="description"
-            type="textarea"
-            span={2}
-            form={form}
-            errors={errors}
-            onChange={handleChange}
-          />
+          </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
 
           <button

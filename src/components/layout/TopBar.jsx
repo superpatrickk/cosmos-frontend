@@ -9,7 +9,7 @@ const TopBar = ({
   onSearch,
 }) => {
   return (
-    <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
+    <header className="flex items-center justify-between border-b border-white/40 bg-white/70 px-6 py-4 shadow-[0_1px_0_rgba(255,255,255,0.4)] backdrop-blur-[1px] flex-shrink-0">
       <div>
         <h1 className="text-xl font-bold text-gray-800">{title}</h1>
         {subtitle && (
@@ -28,7 +28,7 @@ const TopBar = ({
             placeholder="Search..."
             value={search}
             onChange={(e) => onSearch?.(e.target.value)}
-            className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon w-52 transition"
+            className="w-52 rounded-lg border border-gray-200/70 bg-white/55 py-2 pl-9 pr-4 text-sm text-gray-700 transition focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
           />
         </div>
 

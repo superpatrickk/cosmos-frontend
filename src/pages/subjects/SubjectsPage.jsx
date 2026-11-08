@@ -195,7 +195,7 @@ const SubjectsPage = () => {
           ].map((s) => (
             <div
               key={s.label}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4"
+              className="rounded-2xl border border-white/25 bg-white/45 p-5 shadow-[0_8px_20px_rgba(15,23,42,0.04)] backdrop-blur-[1px] flex items-center gap-4"
             >
               <div className={`w-11 h-11 ${s.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
                 <s.icon size={22} className={s.color} />
@@ -215,10 +215,10 @@ const SubjectsPage = () => {
         )}
 
         {/* Table Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="rounded-2xl border border-white/25 bg-white/45 shadow-[0_8px_20px_rgba(15,23,42,0.04)] backdrop-blur-[1px]">
 
           {/* Table Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/25">
             <div>
               <h2 className="text-base font-bold text-gray-800">Subject Management</h2>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -242,7 +242,7 @@ const SubjectsPage = () => {
               </button>
 
               {showFilter && (
-                <div className="absolute right-0 mt-2 w-56 max-h-96 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-lg z-10 p-3 space-y-1">
+                <div className="absolute right-0 mt-2 w-56 max-h-96 overflow-y-auto border border-white/30 bg-white/80 rounded-xl shadow-lg z-10 p-3 space-y-1 backdrop-blur-[1px]">
                   <p className="text-xs font-semibold text-gray-400 uppercase px-2 mb-2">
                     Subject Type
                   </p>
@@ -286,7 +286,7 @@ const SubjectsPage = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wide">
+                <tr className="border-b border-white/25 text-xs text-gray-400 uppercase tracking-wide">
                   <th className="text-left px-6 py-3 font-semibold">Code</th>
                   <th className="text-left px-6 py-3 font-semibold">Subject Name</th>
                   <th className="text-left px-6 py-3 font-semibold">Units</th>
@@ -327,7 +327,7 @@ const SubjectsPage = () => {
                 {!loading && !error && paginated.map((subject) => (
                   <tr
                     key={subject.id}
-                    className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                    className="border-b border-white/20 hover:bg-white/20 transition-colors"
                   >
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 bg-pup-maroon/10 text-pup-maroon text-xs font-bold rounded-lg">
@@ -367,21 +367,21 @@ const SubjectsPage = () => {
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleView(subject)}
-                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-500 hover:text-blue-500 hover:bg-blue-50/80 rounded-lg transition-colors"
                           title="View"
                         >
                           <Eye size={15} />
                         </button>
                         <button
                           onClick={() => handleEdit(subject)}
-                          className="p-1.5 text-gray-400 hover:text-pup-maroon hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-500 hover:text-pup-maroon hover:bg-red-50/80 rounded-lg transition-colors"
                           title="Edit"
                         >
                           <Pencil size={15} />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(subject)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50/80 rounded-lg transition-colors"
                           title="Delete"
                         >
                           <Trash2 size={15} />

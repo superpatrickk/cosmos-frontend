@@ -10,6 +10,7 @@ import { Eye, Pencil, Trash2, Filter } from "lucide-react";
 const normalizeFaculty = (member) => ({
   ...member,
   email: member.email || "",
+  type: member.type || "",
   programs: member.programs?.length
     ? member.programs
     : (member.department || "").split(",").map((program) => program.trim()).filter(Boolean),
@@ -161,10 +162,10 @@ const FacultyPage = () => {
             {actionError}
           </p>
         )}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="rounded-2xl border border-white/40 bg-white/70 shadow-[0_10px_25px_rgba(15,23,42,0.05)] backdrop-blur-[1px]">
 
           {/* Table Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between border-b border-white/40 px-6 py-4">
             <h2 className="text-base font-bold text-gray-800">
               Faculty Management
             </h2>
@@ -182,7 +183,7 @@ const FacultyPage = () => {
                 Filter
               </button>
               {showFilter && (
-                <div className="absolute right-0 z-10 mt-2 w-64 rounded-xl border border-gray-100 bg-white p-3 shadow-lg">
+                <div className="absolute right-0 z-10 mt-2 w-64 rounded-xl border border-white/40 bg-white/80 p-3 shadow-lg backdrop-blur-[1px]">
                   <label htmlFor="faculty-status-filter" className="mb-1 block text-xs font-semibold uppercase text-gray-400">
                     Status
                   </label>
@@ -219,6 +220,7 @@ const FacultyPage = () => {
               <thead>
                 <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wide">
                   <th className="text-left px-6 py-3 font-semibold">Name</th>
+                  <th className="text-left px-6 py-3 font-semibold">Type</th>
                   <th className="text-left px-6 py-3 font-semibold">Program</th>
                   <th className="text-left px-6 py-3 font-semibold">Email</th>
                   <th className="text-left px-6 py-3 font-semibold">Specialization</th>
@@ -270,9 +272,10 @@ const FacultyPage = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-gray-600">{member.programs.join(", ") || "—"}</td>
-                    <td className="px-6 py-4 text-gray-600">{member.email}</td>
-                    <td className="px-6 py-4 text-gray-600">{member.specialization}</td>
+                    <td className="px-6 py-4 text-gray-600">{member.type || "—"}</td>
+                    <td className="px-6 py-4 text-gray-600">{member.programs?.join(", ") || "—"}</td>
+                    <td className="px-6 py-4 text-gray-600">{member.email || "—"}</td>
+                    <td className="px-6 py-4 text-gray-600">{member.specialization || "—"}</td>
                     <td className="px-6 py-4">
                       <StatusBadge status={member.status} />
                     </td>

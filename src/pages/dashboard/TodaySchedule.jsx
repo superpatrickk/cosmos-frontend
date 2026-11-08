@@ -27,7 +27,7 @@ const formatTime = (value) => {
 const TodaySchedule = ({ schedule, loading, error, activeDay, search = "" }) => {
   if (loading) {
     return (
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-white/40">
         {[...Array(4)].map((_, i) => <SkeletonRow key={i} />)}
       </div>
     );
@@ -53,11 +53,11 @@ const TodaySchedule = ({ schedule, loading, error, activeDay, search = "" }) => 
   }
 
   return (
-    <div className="divide-y divide-gray-50">
+    <div className="divide-y divide-white/40">
       {schedule.map((item) => (
         <div
           key={item.id}
-          className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+          className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-white/30"
         >
           {/* Left — Icon + Subject Info */}
           <div className="flex items-center gap-4">

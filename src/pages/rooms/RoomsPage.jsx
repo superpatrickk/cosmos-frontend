@@ -186,7 +186,7 @@ const RoomsPage = () => {
           ].map((s) => (
             <div
               key={s.label}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4"
+              className="rounded-2xl border border-white/40 bg-white/70 p-5 shadow-[0_10px_25px_rgba(15,23,42,0.05)] backdrop-blur-[1px] flex items-center gap-4"
             >
               <div className={`w-11 h-11 ${s.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
                 <s.icon size={22} className={s.color} />
@@ -200,10 +200,10 @@ const RoomsPage = () => {
         </div>
 
         {/* Table Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="rounded-2xl border border-white/40 bg-white/70 shadow-[0_10px_25px_rgba(15,23,42,0.05)] backdrop-blur-[1px]">
 
           {/* Table Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between border-b border-white/40 px-6 py-4">
             <div>
               <h2 className="text-base font-bold text-gray-800">Room Management</h2>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -242,7 +242,7 @@ const RoomsPage = () => {
 
                 {/* Filter Dropdown */}
                 {showFilter && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-lg z-10 p-4 space-y-4">
+                  <div className="absolute right-0 z-10 mt-2 w-64 rounded-xl border border-white/40 bg-white/80 p-4 shadow-lg backdrop-blur-[1px] space-y-4">
 
                     {/* Filter by Status */}
                     <div>

@@ -1,81 +1,16 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import TopBar from "../../components/layout/TopBar";
 import { printableService } from "../../api/services/printableService";
+import { courseService } from "../../api/services/courseService";
+import { facultyService } from "../../api/services/facultyService";
+import { roomService } from "../../api/services/roomService";
 import {
   Printer, Download, Filter,
   ChevronDown, Loader2, FileText,
 } from "lucide-react";
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_SCHEDULE_DATA = [
-  {
-    id: "SCH001", subjectCode: "CS101", subjectName: "Introduction to Programming",
-    faculty: "Dr. Maria Santos", facultyId: "F001",
-    room: "RM002", roomName: "Lecture Hall 1",
-    day: "Monday", startTime: "08:00", endTime: "08:30",
-    course: "BSCS", section: "A",
-    semester: "1st Semester", academicYear: "2025-2026",
-  },
-  {
-    id: "SCH002", subjectCode: "MATH101", subjectName: "Calculus I",
-    faculty: "Dr. Ana Cruz", facultyId: "F003",
-    room: "RM003", roomName: "Lab Room 101",
-    day: "Monday", startTime: "08:30", endTime: "09:00",
-    course: "BSCS", section: "A",
-    semester: "1st Semester", academicYear: "2025-2026",
-  },
-  {
-    id: "SCH003", subjectCode: "EE201", subjectName: "Circuit Analysis",
-    faculty: "Prof. Juan Reyes", facultyId: "F002",
-    room: "RM005", roomName: "Auditorium",
-    day: "Tuesday", startTime: "13:00", endTime: "13:30",
-    course: "BSEE", section: "B",
-    semester: "1st Semester", academicYear: "2025-2026",
-  },
-  {
-    id: "SCH004", subjectCode: "BA105", subjectName: "Principles of Management",
-    faculty: "Prof. Carlos Garcia", facultyId: "F004",
-    room: "RM001", roomName: "Conference Room A",
-    day: "Wednesday", startTime: "09:00", endTime: "09:30",
-    course: "BSBA", section: "A",
-    semester: "1st Semester", academicYear: "2025-2026",
-  },
-  {
-    id: "SCH005", subjectCode: "CS201", subjectName: "Data Structures",
-    faculty: "Dr. Maria Santos", facultyId: "F001",
-    room: "RM002", roomName: "Lecture Hall 1",
-    day: "Thursday", startTime: "08:00", endTime: "08:30",
-    course: "BSCS", section: "B",
-    semester: "1st Semester", academicYear: "2025-2026",
-  },
-  {
-    id: "SCH006", subjectCode: "CS301", subjectName: "Database Management Systems",
-    faculty: "Dr. Maria Santos", facultyId: "F001",
-    room: "RM006", roomName: "Seminar Room 1",
-    day: "Friday", startTime: "10:00", endTime: "10:30",
-    course: "BSCS", section: "A",
-    semester: "1st Semester", academicYear: "2025-2026",
-  },
-  {
-    id: "SCH007", subjectCode: "MATH101", subjectName: "Calculus I",
-    faculty: "Dr. Ana Cruz", facultyId: "F003",
-    room: "RM003", roomName: "Lab Room 101",
-    day: "Wednesday", startTime: "13:00", endTime: "13:30",
-    course: "BSEE", section: "B",
-    semester: "1st Semester", academicYear: "2025-2026",
-  },
-  {
-    id: "SCH008", subjectCode: "CS101", subjectName: "Introduction to Programming",
-    faculty: "Dr. Maria Santos", facultyId: "F001",
-    room: "RM002", roomName: "Lecture Hall 1",
-    day: "Wednesday", startTime: "08:00", endTime: "08:30",
-    course: "BSCS", section: "B",
-    semester: "1st Semester", academicYear: "2025-2026",
-  },
-];
-
-const DAYS           = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const TIME_SLOTS     = [
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const TIME_SLOTS = [
   "07:00-07:30", "07:30-08:00", "08:00-08:30", "08:30-09:00",
   "09:00-09:30", "09:30-10:00", "10:00-10:30", "10:30-11:00",
   "11:00-11:30", "11:30-12:00", "12:00-12:30", "12:30-13:00",
@@ -83,41 +18,72 @@ const TIME_SLOTS     = [
   "15:00-15:30", "15:30-16:00", "16:00-16:30", "16:30-17:00",
   "17:00-17:30", "17:30-18:00",
 ];
-const COURSES        = ["All Programs", "BSCS", "BSEE", "BSBA", "BSMath", "BSIT"];
-const FACULTY_LIST   = ["All Faculty", "Dr. Maria Santos", "Prof. Juan Reyes", "Dr. Ana Cruz", "Prof. Carlos Garcia"];
-const ROOMS_LIST     = ["All Rooms", "RM001", "RM002", "RM003", "RM005", "RM006"];
-const SEMESTERS      = ["1st Semester", "2nd Semester", "Summer"];
+const SEMESTERS = ["1st Semester", "2nd Semester", "Summer"];
 const ACADEMIC_YEARS = ["2024-2025", "2025-2026", "2026-2027"];
-// ──────────────────────────────────────────────────────────────────────────────
 
 const PrintableSchedulePage = () => {
-  const [schedules, setSchedules]       = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [exporting, setExporting]       = useState(false);
-  const [error, setError]               = useState(null);
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState(null);
   const [filterCourse, setFilterCourse] = useState("All Programs");
   const [filterFaculty, setFilterFaculty] = useState("All Faculty");
-  const [filterRoom, setFilterRoom]     = useState("All Rooms");
-  const [semester, setSemester]         = useState("1st Semester");
+  const [filterRoom, setFilterRoom] = useState("All Rooms");
+  const [semester, setSemester] = useState("1st Semester");
   const [academicYear, setAcademicYear] = useState("2025-2026");
+  const [courseOptions, setCourseOptions] = useState(["All Programs"]);
+  const [facultyOptions, setFacultyOptions] = useState(["All Faculty"]);
+  const [roomOptions, setRoomOptions] = useState(["All Rooms"]);
   const printRef = useRef(null);
 
   const fetchSchedules = async () => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: const res = await printableService.getSchedule({ semester, academicYear });
-      // setSchedules(res.data);
-      await new Promise((r) => setTimeout(r, 700));
-      setSchedules(MOCK_SCHEDULE_DATA);
-    } catch {
-      setError("Failed to load schedule data.");
+      const response = await printableService.getSchedule({ semester, academicYear });
+      const data = response?.data ?? response ?? [];
+      setSchedules(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || "Failed to load schedule data.");
+      setSchedules([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { fetchSchedules(); }, [semester, academicYear]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchFilters = async () => {
+      try {
+        const [coursesRes, facultyRes, roomsRes] = await Promise.all([
+          courseService.getAll(),
+          facultyService.getAll(),
+          roomService.getAll(),
+        ]);
+        if (!active) return;
+
+        const coursesData = Array.isArray(coursesRes?.data ?? coursesRes ?? []) ? coursesRes?.data ?? coursesRes ?? [] : [];
+        const facultyData = Array.isArray(facultyRes?.data ?? facultyRes ?? []) ? facultyRes?.data ?? facultyRes ?? [] : [];
+        const roomsData = Array.isArray(roomsRes?.data ?? roomsRes ?? []) ? roomsRes?.data ?? roomsRes ?? [] : [];
+
+        setCourseOptions(["All Programs", ...new Set(coursesData.map((course) => course.code || course.name).filter(Boolean))]);
+        setFacultyOptions(["All Faculty", ...new Set(facultyData.map((person) => person.name || person.fullName).filter(Boolean))]);
+        setRoomOptions(["All Rooms", ...new Set(roomsData.map((room) => room.code || room.name).filter(Boolean))]);
+      } catch (err) {
+        console.error("Failed to load printable schedule filters:", err);
+        if (active) {
+          setCourseOptions(["All Programs"]);
+          setFacultyOptions(["All Faculty"]);
+          setRoomOptions(["All Rooms"]);
+        }
+      }
+    };
+
+    fetchFilters();
+    return () => { active = false; };
+  }, []);
 
   // Apply filters
   const filtered = useMemo(() => {
@@ -181,21 +147,27 @@ const PrintableSchedulePage = () => {
     window.print();
   };
 
-  // Export PDF handler
   const handleExportPdf = async () => {
     setExporting(true);
     try {
-      // TODO: const blob = await printableService.exportPdf({ semester, academicYear, filterCourse, filterFaculty, filterRoom });
-      // const url = window.URL.createObjectURL(new Blob([blob.data]));
-      // const a = document.createElement("a"); a.href = url;
-      // a.download = `COSMOS_Schedule_${semester}_${academicYear}.pdf`;
-      // a.click(); window.URL.revokeObjectURL(url);
+      const response = await printableService.exportPdf({
+        semester,
+        academicYear,
+        course: filterCourse !== "All Programs" ? filterCourse : undefined,
+        faculty: filterFaculty !== "All Faculty" ? filterFaculty : undefined,
+        room: filterRoom !== "All Rooms" ? filterRoom : undefined,
+      });
 
-      // MOCK
-      await new Promise((r) => setTimeout(r, 1500));
-      alert("PDF export will be connected to backend.");
-    } catch {
-      alert("Export failed.");
+      const blob = new Blob([response.data ?? response], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `COSMOS_Schedule_${semester}_${academicYear}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export printable schedule PDF:", err);
+      alert(err?.response?.data?.message || err?.message || "Export failed.");
     } finally {
       setExporting(false);
     }
@@ -210,7 +182,7 @@ const PrintableSchedulePage = () => {
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition appearance-none"
+          className="w-full rounded-lg border border-gray-200/80 bg-white/70 py-2 pl-3 pr-8 text-sm transition appearance-none focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
         >
           {options.map((o) => <option key={o}>{o}</option>)}
         </select>
@@ -229,7 +201,7 @@ const PrintableSchedulePage = () => {
       <div className="p-6 space-y-5">
 
         {/* Controls Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="rounded-2xl border border-white/40 bg-white/70 p-5 shadow-[0_10px_25px_rgba(15,23,42,0.05)] backdrop-blur-[1px]">
           <div className="flex flex-col lg:flex-row lg:items-end gap-4">
 
             {/* Filters */}
@@ -250,19 +222,19 @@ const PrintableSchedulePage = () => {
                 label="Filter by Program"
                 value={filterCourse}
                 onChange={setFilterCourse}
-                options={COURSES}
+                options={courseOptions}
               />
               <SelectFilter
                 label="Filter by Faculty"
                 value={filterFaculty}
                 onChange={setFilterFaculty}
-                options={FACULTY_LIST}
+                options={facultyOptions}
               />
               <SelectFilter
                 label="Filter by Room"
                 value={filterRoom}
                 onChange={setFilterRoom}
-                options={ROOMS_LIST}
+                options={roomOptions}
               />
             </div>
 
@@ -328,7 +300,7 @@ const PrintableSchedulePage = () => {
             { label: "Days Covered",     value: new Set(filtered.map((s) => s.day)).size },
             { label: "Rooms Used",       value: new Set(filtered.map((s) => s.room)).size },
           ].map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
+            <div key={s.label} className="rounded-xl border border-white/40 bg-white/70 p-4 text-center shadow-[0_10px_25px_rgba(15,23,42,0.04)] backdrop-blur-[1px]">
               <p className="text-xl font-bold text-gray-800">{loading ? "—" : s.value}</p>
               <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
             </div>
@@ -338,7 +310,7 @@ const PrintableSchedulePage = () => {
         {/* Printable Schedule Table */}
         <div
           ref={printRef}
-          className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+          className="overflow-hidden rounded-2xl border border-white/40 bg-white/70 shadow-[0_10px_25px_rgba(15,23,42,0.05)] backdrop-blur-[1px]"
           id="print-area"
         >
           {/* PUP Header — shown in print */}

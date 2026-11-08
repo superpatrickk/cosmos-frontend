@@ -8,78 +8,16 @@ import ScheduleEditModal from "../../components/schedules/ScheduleEditModal";
 import { scheduleService } from "../../api/services/scheduleService";
 import { facultyService } from "../../api/services/facultyService";
 import { roomService } from "../../api/services/roomService";
+import { subjectService } from "../../api/services/subjectService";
+import { courseService } from "../../api/services/courseService";
 import {
   CalendarDays, Clock, DoorOpen, Users,
   ChevronLeft, ChevronRight, Pencil, Trash2,
   AlertTriangle, CheckCircle2, Filter,
 } from "lucide-react";
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_SUBJECTS = [
-  { id: "S001", code: "CS101",   name: "Introduction to Programming" },
-  { id: "S002", code: "MATH101", name: "Calculus I" },
-  { id: "S003", code: "EE201",   name: "Circuit Analysis" },
-  { id: "S004", code: "BA105",   name: "Principles of Management" },
-  { id: "S005", code: "CS201",   name: "Data Structures" },
-  { id: "S006", code: "CS301",   name: "Database Management Systems" },
-];
-
-const MOCK_COURSES = [
-  { id: "C001", code: "BSCS" },
-  { id: "C002", code: "BSEE" },
-  { id: "C003", code: "BSBA" },
-  { id: "C004", code: "BSMath" },
-  { id: "C005", code: "BSIT" },
-];
-
-const MOCK_SCHEDULES = [
-  {
-    id: "SCH001", subjectCode: "CS101", subjectName: "Introduction to Programming",
-    faculty: "Dr. Maria Santos", room: "RM002", roomName: "Lecture Hall 1",
-    day: "Monday", startTime: "08:00", endTime: "09:30",
-    course: "BSCS", section: "A", semester: "1st Semester",
-    academicYear: "2025-2026", status: "Active",
-  },
-  {
-    id: "SCH002", subjectCode: "MATH101", subjectName: "Calculus I",
-    faculty: "Dr. Ana Cruz", room: "RM003", roomName: "Lab Room 101",
-    day: "Monday", startTime: "09:30", endTime: "11:00",
-    course: "BSCS", section: "A", semester: "1st Semester",
-    academicYear: "2025-2026", status: "Active",
-  },
-  {
-    id: "SCH003", subjectCode: "EE201", subjectName: "Circuit Analysis",
-    faculty: "Prof. Juan Reyes", room: "RM005", roomName: "Auditorium",
-    day: "Tuesday", startTime: "13:00", endTime: "14:30",
-    course: "BSEE", section: "B", semester: "1st Semester",
-    academicYear: "2025-2026", status: "Active",
-  },
-  {
-    id: "SCH004", subjectCode: "BA105", subjectName: "Principles of Management",
-    faculty: "Prof. Carlos Garcia", room: "RM001", roomName: "Conference Room A",
-    day: "Wednesday", startTime: "09:00", endTime: "10:30",
-    course: "BSBA", section: "A", semester: "1st Semester",
-    academicYear: "2025-2026", status: "Active",
-  },
-  {
-    id: "SCH005", subjectCode: "CS201", subjectName: "Data Structures",
-    faculty: "Dr. Maria Santos", room: "RM002", roomName: "Lecture Hall 1",
-    day: "Thursday", startTime: "08:00", endTime: "09:30",
-    course: "BSCS", section: "B", semester: "1st Semester",
-    academicYear: "2025-2026", status: "Active",
-  },
-  {
-    id: "SCH006", subjectCode: "CS301", subjectName: "Database Management Systems",
-    faculty: "Dr. Maria Santos", room: "RM006", roomName: "Seminar Room 1",
-    day: "Friday", startTime: "10:00", endTime: "11:30",
-    course: "BSCS", section: "A", semester: "1st Semester",
-    academicYear: "2025-2026", status: "Active",
-  },
-];
-
-const DAYS         = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const ITEMS_PER_PAGE = 5;
-// ──────────────────────────────────────────────────────────────────────────────
 
 const ScheduleAssignmentPage = () => {
   const [schedules, setSchedules]       = useState([]);
@@ -103,25 +41,48 @@ const ScheduleAssignmentPage = () => {
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [roomsError, setRoomsError] = useState(null);
 
-  // Dropdown options state
-  const [subjects] = useState(MOCK_SUBJECTS);
-  const [courses]  = useState(MOCK_COURSES);
+  const [subjects, setSubjects] = useState([]);
+  const [courses, setCourses] = useState([]);
 
   const fetchSchedules = async () => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: const res = await scheduleService.getAll(); setSchedules(res.data);
-      await new Promise((r) => setTimeout(r, 700));
-      setSchedules(MOCK_SCHEDULES);
-    } catch {
-      setError("Failed to load schedules.");
+      const response = await scheduleService.getAll();
+      const data = response?.data ?? response ?? [];
+      setSchedules(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || "Failed to load schedules.");
+      setSchedules([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { fetchSchedules(); }, []);
+
+  useEffect(() => {
+    let active = true;
+    const fetchMetadata = async () => {
+      try {
+        const [subjectsResponse, coursesResponse] = await Promise.all([
+          subjectService.getAll(),
+          courseService.getAll(),
+        ]);
+        if (!active) return;
+        setSubjects(Array.isArray(subjectsResponse?.data ?? subjectsResponse ?? []) ? (subjectsResponse?.data ?? subjectsResponse) : []);
+        setCourses(Array.isArray(coursesResponse?.data ?? coursesResponse ?? []) ? (coursesResponse?.data ?? coursesResponse) : []);
+      } catch (err) {
+        console.error("Failed to load metadata for schedule assignment:", err);
+        if (active) {
+          setSubjects([]);
+          setCourses([]);
+        }
+      }
+    };
+    fetchMetadata();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -189,42 +150,28 @@ const ScheduleAssignmentPage = () => {
   const handleCheckConflicts = async (formData) => {
     setConflictResult(null);
     try {
-      // TODO: const res = await scheduleService.checkConflicts(formData);
-      // MOCK conflict check logic
-      await new Promise((r) => setTimeout(r, 800));
-      const conflicts = schedules.filter(
-        (s) =>
-          s.day === formData.day &&
-          s.room === formData.room &&
-          s.id !== formData.id &&
-          !(formData.endTime <= s.startTime || formData.startTime >= s.endTime)
-      );
+      const response = await scheduleService.checkConflicts(formData);
+      const payload = response?.data ?? response ?? { hasConflict: false, conflicts: [] };
       setConflictResult({
-        hasConflict: conflicts.length > 0,
-        conflicts,
+        hasConflict: Boolean(payload.hasConflict ?? payload.conflicts?.length > 0),
+        conflicts: Array.isArray(payload.conflicts) ? payload.conflicts : [],
       });
-    } catch {
-      alert("Failed to check conflicts.");
+    } catch (err) {
+      console.error("Failed to check conflicts:", err);
+      alert(err?.response?.data?.message || err?.message || "Failed to check conflicts.");
     }
   };
 
   const handleAddSchedule = async (formData) => {
     setFormLoading(true);
     try {
-      // TODO: await scheduleService.create(formData);
-      await new Promise((r) => setTimeout(r, 600));
-      const newSchedule = {
-        ...formData,
-        id: `SCH00${schedules.length + 1}`,
-        subjectName: subjects.find((s) => s.code === formData.subjectCode)?.name ?? "",
-        roomName: rooms.find((r) => r.code === formData.room)?.name ?? "",
-        status: "Active",
-      };
-      setSchedules((prev) => [...prev, newSchedule]);
+      await scheduleService.create(formData);
+      await fetchSchedules();
       setConflictResult(null);
       return true;
-    } catch {
-      alert("Failed to add schedule.");
+    } catch (err) {
+      console.error("Failed to add schedule:", err);
+      alert(err?.response?.data?.message || err?.message || "Failed to add schedule.");
       return false;
     } finally {
       setFormLoading(false);
@@ -233,34 +180,24 @@ const ScheduleAssignmentPage = () => {
 
   const handleEditSubmit = async (formData) => {
     try {
-      // TODO: await scheduleService.update(selectedSchedule.id, formData);
-      await new Promise((r) => setTimeout(r, 500));
-      setSchedules((prev) =>
-        prev.map((s) =>
-          s.id === selectedSchedule.id
-            ? {
-                ...s, ...formData,
-                subjectName: subjects.find((sub) => sub.code === formData.subjectCode)?.name ?? s.subjectName,
-                roomName: rooms.find((r) => r.code === formData.room)?.name ?? s.roomName,
-              }
-            : s
-        )
-      );
+      await scheduleService.update(selectedSchedule.id, formData);
+      await fetchSchedules();
       setEditModalOpen(false);
-    } catch {
-      alert("Failed to update schedule.");
+    } catch (err) {
+      console.error("Failed to update schedule:", err);
+      alert(err?.response?.data?.message || err?.message || "Failed to update schedule.");
     }
   };
 
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
     try {
-      // TODO: await scheduleService.delete(deleteTarget.id);
-      await new Promise((r) => setTimeout(r, 500));
-      setSchedules((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      await scheduleService.delete(deleteTarget.id);
+      await fetchSchedules();
       setConfirmOpen(false);
-    } catch {
-      alert("Failed to delete schedule.");
+    } catch (err) {
+      console.error("Failed to delete schedule:", err);
+      alert(err?.response?.data?.message || err?.message || "Failed to delete schedule.");
     } finally {
       setDeleteLoading(false);
     }
@@ -302,7 +239,7 @@ const ScheduleAssignmentPage = () => {
             { label: "Rooms in Use",      value: uniqueRooms,    icon: DoorOpen,     color: "text-blue-600",  bg: "bg-blue-50"  },
             { label: "Faculty Assigned",  value: uniqueFaculty,  icon: Users,        color: "text-green-600", bg: "bg-green-50" },
           ].map((s) => (
-            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+            <div key={s.label} className="rounded-2xl border border-white/40 bg-white/70 p-5 shadow-[0_10px_25px_rgba(15,23,42,0.05)] backdrop-blur-[1px] flex items-center gap-4">
               <div className={`w-11 h-11 ${s.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
                 <s.icon size={22} className={s.color} />
               </div>

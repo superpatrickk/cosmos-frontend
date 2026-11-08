@@ -1,26 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Pencil, Trash2, BookOpen, Eye, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, BookOpen, Eye } from "lucide-react";
 import ConfirmDialog from "../common/ConfirmDialog";
 import CurriculumModal from "./CurriculumModal";
 import CurriculumViewModal from "./CurriculumViewModal";
 import { normalizeSchedulingCurriculum } from "../../data/curriculumStore";
 import { curriculumService } from "../../api/services/curriculumService";
-
-const MOCK_PROGRAMS = ["BSIT","BSCS","BSEE","BSBA","BSMath"];
-const MOCK_FACULTY = [
-  "Dr. Maria Santos",
-  "Prof. Juan Reyes",
-  "Dr. Ana Cruz",
-  "Prof. Carlos Garcia",
-  "Prof. Liza Mendoza",
-];
-
-const summarizeUnique = (items, limit = 2) => {
-  const values = [...new Set(items.filter(Boolean))];
-  if (values.length === 0) return "None";
-  if (values.length <= limit) return values.join(", ");
-  return `${values.slice(0, limit).join(", ")} +${values.length - limit}`;
-};
 
 const CurriculumManager = () => {
   const [curricula, setCurricula]     = useState([]);
@@ -28,7 +12,7 @@ const CurriculumManager = () => {
   const [loadError, setLoadError]     = useState(null);
   const [search, setSearch]           = useState("");
   const [filterProgram, setFilterProgram] = useState("All");
-  const [filterFaculty, setFilterFaculty] = useState("All");
+  const [programOptions, setProgramOptions] = useState([]);
   const [showFilter, setShowFilter]   = useState(false);
   const [modalOpen, setModalOpen]     = useState(false);
   const [viewOpen, setViewOpen]       = useState(false);
@@ -40,15 +24,13 @@ const CurriculumManager = () => {
 
   const filtered = useMemo(() =>
     curricula.filter((c) => {
-      const subjectText = (c.subjects ?? [])
-        .flatMap((subject) => [subject.code, subject.description, subject.faculty, subject.roomType])
-        .join(" ");
-      const matchSearch = [c.program, c.yearLevel, c.semester, c.academicYear, subjectText]
-        .join(" ").toLowerCase().includes(search.toLowerCase());
+      const matchSearch = [c.program, c.yearLevel, c.academicYear, c.status]
+        .join(" ")
+        .toLowerCase()
+        .includes(search.toLowerCase());
       const matchProgram = filterProgram === "All" || c.program === filterProgram;
-      const matchFaculty = filterFaculty === "All" || c.subjects?.some((subject) => subject.faculty === filterFaculty);
-      return matchSearch && matchProgram && matchFaculty;
-    }), [curricula, search, filterProgram, filterFaculty]
+      return matchSearch && matchProgram;
+    }), [curricula, search, filterProgram]
   );
 
   const handleDeleteConfirm = async () => {
@@ -71,9 +53,12 @@ const CurriculumManager = () => {
       const res = await curriculumService.getAll();
       const data = res?.data ?? res;
       if (Array.isArray(data)) {
-        setCurricula(data.map(normalizeSchedulingCurriculum));
+        const normalized = data.map(normalizeSchedulingCurriculum);
+        setCurricula(normalized);
+        setProgramOptions(Array.from(new Set(normalized.map((item) => item.program).filter(Boolean))));
       } else {
         setCurricula([]);
+        setProgramOptions([]);
       }
     } catch (err) {
       console.error("Failed to fetch curricula from server:", err);
@@ -103,55 +88,53 @@ const CurriculumManager = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+    <div className="rounded-2xl border border-white/40 bg-white/70 shadow-[0_10px_30px_rgba(15,23,42,0.04)] backdrop-blur-[2px]">
+      <div className="flex items-center justify-between border-b border-white/40 bg-white/60 px-5 py-4">
         <div>
           <h2 className="text-base font-bold text-gray-800">Curriculum Management</h2>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="mt-0.5 text-xs text-gray-500">
             {filtered.length} curriculum{filtered.length !== 1 ? "s" : ""} found
           </p>
         </div>
         <div className="flex items-center gap-2">
-            {loadError && (
-              <div className="mr-4 p-2 rounded-md bg-red-50 text-red-700 text-xs">
-                {loadError}
-              </div>
-            )}
+          {loadError && (
+            <div className="mr-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-700">
+              {loadError}
+            </div>
+          )}
 
           <input
             type="text"
             placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon w-44"
+            className="w-44 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
           />
 
           <div className="relative">
             <button
               onClick={() => setShowFilter((v) => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
                 filterProgram !== "All"
-                  ? "border-pup-maroon text-pup-maroon bg-red-50"
+                  ? "border-pup-maroon bg-red-50 text-pup-maroon"
                   : "border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
             >
               Program
               {filterProgram !== "All" && (
-                <span className="w-1.5 h-1.5 bg-pup-maroon rounded-full" />
+                <span className="h-1.5 w-1.5 rounded-full bg-pup-maroon" />
               )}
             </button>
             {showFilter && (
-              <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg z-10 p-2">
-                {["All", ...MOCK_PROGRAMS].map((p) => (
+              <div className="absolute right-0 z-10 mt-2 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                {["All", ...programOptions].map((p) => (
                   <button
                     key={p}
                     onClick={() => { setFilterProgram(p); setShowFilter(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
+                    className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                       filterProgram === p
                         ? "bg-pup-maroon text-white"
-                        : "hover:bg-gray-50 text-gray-700"
+                        : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     {p === "All" ? "All Programs" : p}
@@ -161,22 +144,9 @@ const CurriculumManager = () => {
             )}
           </div>
 
-          <select
-            value={filterFaculty}
-            onChange={(e) => setFilterFaculty(e.target.value)}
-            className={`px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon bg-white ${
-              filterFaculty !== "All" ? "border-pup-maroon text-pup-maroon bg-red-50" : "border-gray-200 text-gray-600"
-            }`}
-          >
-            <option value="All">All Faculty</option>
-            {MOCK_FACULTY.map((faculty) => (
-              <option key={faculty}>{faculty}</option>
-            ))}
-          </select>
-
           <button
             onClick={() => { setSelected(null); setModalMode("add"); setModalOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-pup-maroon text-white rounded-lg hover:bg-pup-maroon-dark transition-colors font-medium"
+            className="inline-flex items-center gap-2 rounded-lg bg-pup-maroon px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-pup-maroon-dark"
           >
             <Plus size={14} />
             Add Curriculum
@@ -188,24 +158,19 @@ const CurriculumManager = () => {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wide bg-gray-50">
-              <th className="text-left px-6 py-3 font-semibold">ID</th>
-              <th className="text-left px-6 py-3 font-semibold">Program</th>
-              <th className="text-left px-6 py-3 font-semibold">Year Level</th>
-              <th className="text-left px-6 py-3 font-semibold">Semester</th>
-              <th className="text-left px-6 py-3 font-semibold">Academic Year</th>
-              <th className="text-center px-6 py-3 font-semibold">Subjects</th>
-              <th className="text-center px-6 py-3 font-semibold">Total Units</th>
-              <th className="text-left px-6 py-3 font-semibold">Faculty</th>
-              <th className="text-left px-6 py-3 font-semibold">Room Types</th>
-              <th className="text-left px-6 py-3 font-semibold">Status</th>
-              <th className="text-left px-6 py-3 font-semibold">Actions</th>
+            <tr className="border-b border-gray-100 bg-gray-50 text-[11px] font-bold uppercase tracking-[0.08em] text-gray-500">
+              <th className="px-6 py-3 text-left">ID</th>
+              <th className="px-6 py-3 text-left">Program</th>
+              <th className="px-6 py-3 text-left">Year Level</th>
+              <th className="px-6 py-3 text-left">Academic Year</th>
+              <th className="px-6 py-3 text-left">Status</th>
+              <th className="px-6 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading && [...Array(3)].map((_, i) => (
               <tr key={i} className="border-b border-gray-50 animate-pulse">
-                {[...Array(11)].map((_, j) => (
+                {[...Array(6)].map((_, j) => (
                   <td key={j} className="px-6 py-4">
                     <div className="h-4 bg-gray-100 rounded w-20" />
                   </td>
@@ -215,7 +180,7 @@ const CurriculumManager = () => {
 
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-6 py-12 text-center">
+                <td colSpan={6} className="px-6 py-12 text-center">
                   <BookOpen size={32} className="text-gray-200 mx-auto mb-2" />
                   <p className="text-sm text-gray-400">No curricula found.</p>
                 </td>
@@ -223,33 +188,17 @@ const CurriculumManager = () => {
             )}
 
             {!loading && filtered.map((c) => (
-              <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 text-xs text-gray-400 font-medium">{c.id}</td>
+              <tr key={c.id} className="border-b border-gray-50 transition-colors hover:bg-gray-50">
+                <td className="px-6 py-4 text-xs font-medium text-gray-400">{c.id}</td>
                 <td className="px-6 py-4">
-                  <span className="px-2 py-1 bg-pup-maroon/10 text-pup-maroon text-xs font-bold rounded-lg">
+                  <span className="inline-flex rounded-full bg-pup-maroon/10 px-2 py-1 text-xs font-semibold text-pup-maroon">
                     {c.program}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">{c.yearLevel}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">{c.semester}</td>
                 <td className="px-6 py-4 text-sm text-gray-700">{c.academicYear}</td>
-                <td className="px-6 py-4 text-center">
-                  <span className="font-bold text-gray-700">{c.totalSubjects}</span>
-                </td>
-                <td className="px-6 py-4 text-center">
-                  <span className="font-bold text-gray-700">{c.totalUnits}</span>
-                </td>
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-2 text-xs text-gray-600 max-w-[220px]">
-                    <Users size={14} className="text-gray-300 flex-shrink-0" />
-                    <span className="truncate">{summarizeUnique(c.subjects?.map((subject) => subject.faculty))}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-xs text-gray-600">
-                  {summarizeUnique(c.subjects?.map((subject) => subject.roomType))}
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                     c.status === "Active"
                       ? "bg-green-100 text-green-700"
                       : "bg-gray-100 text-gray-500"
@@ -258,24 +207,24 @@ const CurriculumManager = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center justify-end gap-1.5">
                     <button
                       onClick={() => { setSelected(c); setViewOpen(true); }}
-                      className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="rounded-lg border border-gray-200 bg-white p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
                       title="View"
                     >
                       <Eye size={15} />
                     </button>
                     <button
                       onClick={() => { setSelected(c); setModalMode("edit"); setModalOpen(true); }}
-                      className="p-1.5 text-gray-400 hover:text-pup-maroon hover:bg-red-50 rounded-lg transition-colors"
+                      className="rounded-lg border border-gray-200 bg-white p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-pup-maroon"
                       title="Edit"
                     >
                       <Pencil size={15} />
                     </button>
                     <button
                       onClick={() => { setDeleteTarget(c); setConfirmOpen(true); }}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="rounded-lg border border-red-200 bg-red-50 p-1.5 text-red-500 transition-colors hover:bg-red-100"
                       title="Delete"
                     >
                       <Trash2 size={15} />

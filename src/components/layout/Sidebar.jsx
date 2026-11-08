@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import pupLogo from "../../../Polytechnic_University_of_the_Philippines_Bataan_Logo.png";
 import {
   LayoutDashboard, Users, GraduationCap, BookMarked, BookOpen,
   DoorOpen, CalendarDays, CalendarCheck, Printer,
@@ -9,14 +10,12 @@ import {
 
 const navItems = [
   { label: "Dashboard",           path: "/dashboard",        icon: LayoutDashboard },
-  { label: "Faculty Members",     path: "/faculty",          icon: Users },
-  { label: "Programs",            path: "/courses",          icon: GraduationCap },
   { label: "Curriculum",          path: "/curriculum",       icon: BookMarked },
-  { label: "Courses",            path: "/subjects",         icon: BookOpen },
+  { label: "Faculty Members",     path: "/faculty",          icon: Users },
   { label: "Rooms",               path: "/rooms",            icon: DoorOpen },
-  { label: "Schedule Assignment", path: "/schedules",        icon: CalendarDays },
+  { label: "Scheduling", path: "/schedules",        icon: CalendarDays },
   { label: "Faculty Schedule",    path: "/faculty-schedule", icon: CalendarCheck },
-  { label: "Printable Schedule",  path: "/printable",        icon: Printer },
+  { label: "Offerings",  path: "/printable",        icon: Printer },
 ];
 
 const Sidebar = () => {
@@ -38,21 +37,31 @@ const Sidebar = () => {
       `}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
-        {!collapsed && (
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
+        {collapsed ? (
+          <div className="flex w-full items-center justify-center">
+            <img
+              src={pupLogo}
+              alt="PUP Bataan logo"
+              className="h-8 w-8 rounded-full object-cover bg-white/10 p-1"
+            />
+          </div>
+        ) : (
           <div className="flex items-center gap-3">
-            <div className="bg-white/10 p-2 rounded-lg">
-              <LayoutDashboard size={18} />
-            </div>
+            <img
+              src={pupLogo}
+              alt="PUP Bataan logo"
+              className="h-11 w-11 rounded-full object-cover bg-white/10 p-1.5"
+            />
             <div>
-              <p className="font-bold text-sm leading-tight tracking-wide">COSMOS</p>
+              <p className="text-sm font-bold leading-tight tracking-wide">COSMOS</p>
               <p className="text-xs text-white/50">Admin Panel</p>
             </div>
           </div>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-md hover:bg-white/10 transition-colors ml-auto"
+          className="ml-auto rounded-md p-1.5 transition-colors hover:bg-white/10"
         >
           {collapsed ? <Menu size={18} /> : <X size={18} />}
         </button>

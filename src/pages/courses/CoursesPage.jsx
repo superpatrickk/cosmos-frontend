@@ -11,68 +11,7 @@ import {
 } from "lucide-react";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_COURSES = [
-  {
-    id: "C001", code: "BSCS",
-    name: "Bachelor of Science in Computer Science",
-    department: "College of Computer Science",
-    duration: "4 years", students: 450, status: "Active",
-    description: "Focuses on computing theory, software development, and systems design.",
-    yearEstablished: 2005, totalSections: 12,
-  },
-  {
-    id: "C002", code: "BSEE",
-    name: "Bachelor of Science in Electrical Engineering",
-    department: "College of Engineering",
-    duration: "5 years", students: 320, status: "Active",
-    description: "Covers electrical systems, electronics, and power engineering principles.",
-    yearEstablished: 2003, totalSections: 8,
-  },
-  {
-    id: "C003", code: "BSBA",
-    name: "Bachelor of Science in Business Administration",
-    department: "College of Business",
-    duration: "4 years", students: 520, status: "Active",
-    description: "Prepares students for leadership roles in business and management.",
-    yearEstablished: 2001, totalSections: 14,
-  },
-  {
-    id: "C004", code: "BSMath",
-    name: "Bachelor of Science in Mathematics",
-    department: "College of Science",
-    duration: "4 years", students: 180, status: "Active",
-    description: "Develops analytical and problem-solving skills through advanced mathematics.",
-    yearEstablished: 2008, totalSections: 5,
-  },
-  {
-    id: "C005", code: "BSIT",
-    name: "Bachelor of Science in Information Technology",
-    department: "College of Computer Science",
-    duration: "4 years", students: 390, status: "Active",
-    description: "Covers IT infrastructure, networking, and software applications.",
-    yearEstablished: 2006, totalSections: 10,
-  },
-  {
-    id: "C006", code: "BSCE",
-    name: "Bachelor of Science in Civil Engineering",
-    department: "College of Engineering",
-    duration: "5 years", students: 280, status: "Inactive",
-    description: "Focuses on design and construction of infrastructure and structures.",
-    yearEstablished: 2004, totalSections: 7,
-  },
-];
-
-const DEPARTMENTS = [
-  "All Departments",
-  "College of Computer Science",
-  "College of Engineering",
-  "College of Business",
-  "College of Science",
-];
-
 const ITEMS_PER_PAGE = 5;
-// ──────────────────────────────────────────────────────────────────────────────
 
 const CoursesPage = () => {
   const [courses, setCourses]           = useState([]);
@@ -94,17 +33,36 @@ const CoursesPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: const res = await courseService.getAll(); setCourses(res.data);
-      await new Promise((r) => setTimeout(r, 700));
-      setCourses(MOCK_COURSES);
-    } catch {
-      setError("Failed to load programs.");
+      const response = await courseService.getAll();
+      const data = Array.isArray(response?.data ?? response ?? []) ? (response?.data ?? response) : [];
+      setCourses(data.map((course) => ({
+        ...course,
+        code: course.code || "",
+        name: course.name || "",
+        department: course.department || course.college || "N/A",
+        duration: course.duration || "N/A",
+        students: Number(course.students || 0),
+        status: course.status || "Active",
+        description: course.description || "",
+        totalSections: Number(course.totalSections || 0),
+      })));
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || "Failed to load programs.");
+      setCourses([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { fetchCourses(); }, []);
+
+  const departmentOptions = useMemo(() => {
+    const departments = courses
+      .map((course) => course.department)
+      .filter(Boolean);
+
+    return ["All Departments", ...new Set(departments)];
+  }, [courses]);
 
   // Filter + Search + Pagination
   const filtered = useMemo(() => {
@@ -127,9 +85,9 @@ const CoursesPage = () => {
   useEffect(() => { setCurrentPage(1); }, [search, filterDept]);
 
   // Summary stats derived from data
-  const totalStudents  = courses.reduce((s, c) => s + c.students, 0);
-  const totalSections  = courses.reduce((s, c) => s + c.totalSections, 0);
-  const activeCourses  = courses.filter((c) => c.status === "Active").length;
+  const totalStudents  = courses.reduce((s, c) => s + Number(c.students || 0), 0);
+  const totalSections  = courses.reduce((s, c) => s + Number(c.totalSections || 0), 0);
+  const activeCourses  = courses.filter((c) => (c.status || "Active").toLowerCase() === "active").length;
 
   // Handlers
   const handleAdd = () => {
@@ -157,36 +115,57 @@ const CoursesPage = () => {
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
     try {
-      // TODO: await courseService.delete(deleteTarget.id);
-      await new Promise((r) => setTimeout(r, 500));
+      await courseService.delete(deleteTarget.id);
       setCourses((prev) => prev.filter((c) => c.id !== deleteTarget.id));
       setConfirmOpen(false);
-    } catch {
-      alert("Failed to delete program.");
+    } catch (err) {
+      alert(err?.response?.data?.message || err?.message || "Failed to delete program.");
     } finally {
       setDeleteLoading(false);
     }
   };
 
   const handleModalSubmit = async (formData) => {
-    if (modalMode === "add") {
-      // TODO: await courseService.create(formData);
-      const newCourse = {
-        ...formData,
-        id: `C00${courses.length + 1}`,
-        students: 0,
-        totalSections: 0,
-      };
-      setCourses((prev) => [...prev, newCourse]);
-    } else {
-      // TODO: await courseService.update(selectedCourse.id, formData);
-      setCourses((prev) =>
-        prev.map((c) =>
-          c.id === selectedCourse.id ? { ...c, ...formData } : c
-        )
-      );
+    try {
+      if (modalMode === "add") {
+        const response = await courseService.create(formData);
+        const createdCourse = response?.data ?? response ?? formData;
+        setCourses((prev) => [
+          {
+            ...createdCourse,
+            department: createdCourse.department || formData.department || "N/A",
+            duration: createdCourse.duration || formData.duration || "N/A",
+            students: Number(createdCourse.students || 0),
+            status: createdCourse.status || "Active",
+            description: createdCourse.description || "",
+            totalSections: Number(createdCourse.totalSections || 0),
+          },
+          ...prev,
+        ]);
+      } else {
+        const response = await courseService.update(selectedCourse.id, formData);
+        const updatedCourse = response?.data ?? response ?? { ...selectedCourse, ...formData };
+        setCourses((prev) =>
+          prev.map((c) =>
+            c.id === selectedCourse.id
+              ? {
+                  ...c,
+                  ...updatedCourse,
+                  department: updatedCourse.department || c.department || "N/A",
+                  duration: updatedCourse.duration || c.duration || "N/A",
+                  students: Number(updatedCourse.students || c.students || 0),
+                  status: updatedCourse.status || c.status || "Active",
+                  description: updatedCourse.description || c.description || "",
+                  totalSections: Number(updatedCourse.totalSections || c.totalSections || 0),
+                }
+              : c
+          )
+        );
+      }
+      setModalOpen(false);
+    } catch (err) {
+      alert(err?.response?.data?.message || err?.message || "Failed to save program.");
     }
-    setModalOpen(false);
   };
 
   return (
@@ -203,6 +182,7 @@ const CoursesPage = () => {
       <div className="p-6 space-y-5">
 
         {/* Summary Cards */}
+        
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             {
@@ -220,7 +200,7 @@ const CoursesPage = () => {
           ].map((s) => (
             <div
               key={s.label}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4"
+              className="rounded-2xl border border-white/25 bg-white/45 p-5 shadow-[0_8px_20px_rgba(15,23,42,0.04)] backdrop-blur-[1px] flex items-center gap-4"
             >
               <div className={`w-11 h-11 ${s.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
                 <s.icon size={22} className={s.color} />
@@ -234,10 +214,10 @@ const CoursesPage = () => {
         </div>
 
         {/* Table Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="rounded-2xl border border-white/25 bg-white/45 shadow-[0_8px_20px_rgba(15,23,42,0.04)] backdrop-blur-[1px]">
 
           {/* Table Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between border-b border-white/25 px-6 py-4">
             <div>
               <h2 className="text-base font-bold text-gray-800">Program Management</h2>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -262,11 +242,11 @@ const CoursesPage = () => {
 
               {/* Filter Dropdown */}
               {showFilter && (
-                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg z-10 p-3 space-y-1">
+                <div className="absolute right-0 mt-2 w-56 border border-white/30 bg-white/70 rounded-xl shadow-lg z-10 p-3 space-y-1 backdrop-blur-[1px]">
                   <p className="text-xs font-semibold text-gray-400 uppercase px-2 mb-2">
                     Filter by Department
                   </p>
-                  {DEPARTMENTS.map((dept) => (
+                  {departmentOptions.map((dept) => (
                     <button
                       key={dept}
                       onClick={() => { setFilterDept(dept); setShowFilter(false); }}

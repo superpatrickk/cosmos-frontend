@@ -3,13 +3,24 @@ import { X } from "lucide-react";
 
 const EMPTY_FORM = {
   name: "",
+  type: "",
   programs: [],
   email: "",
   specialization: "",
   status: "Active",
 };
 
+const FACULTY_TYPES = [
+  "Core",
+  "Allied",
+  "Part-time",
+  "GEED (Full-time)",
+  "GEED (Part-time)",
+];
+
 const STATUSES = ["Active", "On Leave", "Inactive"];
+
+const isGEEDType = (type) => type === "GEED (Full-time)" || type === "GEED (Part-time)";
 
 const Field = ({ label, name, type = "text", options, form, errors, onChange, isView }) => (
   <div className="flex flex-col gap-1">
@@ -110,7 +121,7 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
         ? data.programs
         : data?.department?.split(",").map((program) => program.trim()).filter(Boolean) ?? [];
       setForm(data
-        ? { ...EMPTY_FORM, ...data, programs: selectedPrograms, email: data.email || "" }
+        ? { ...EMPTY_FORM, ...data, programs: selectedPrograms, email: data.email || "", type: data.type || "" }
         : { ...EMPTY_FORM, programs: [] }
       );
       setErrors({});
@@ -125,8 +136,15 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim())           e.name = "Name is required.";
-    if (!form.programs.length)       e.programs = "Select at least one program.";
+    if (!form.name.trim()) {
+      e.name = "Name is required.";
+    }
+    if (!form.type) {
+      e.type = "Faculty type is required.";
+    }
+    if (!isGEEDType(form.type) && !form.programs.length) {
+      e.programs = "Select at least one program.";
+    }
     if (form.email.trim() && !/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email format.";
     if (!form.specialization.trim()) e.specialization = "Specialization is required.";
     return e;
@@ -154,10 +172,12 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
     setLoading(true);
     setSubmitError("");
     try {
+      const selectedPrograms = isGEEDType(form.type) ? [] : form.programs;
       await onSubmit({
         name: form.name.trim(),
-        programs: form.programs,
-        department: form.programs.join(", "),
+        type: form.type,
+        programs: selectedPrograms,
+        department: selectedPrograms.join(", "),
         email: form.email.trim() || null,
         specialization: form.specialization.trim(),
         status: form.status,
@@ -194,17 +214,26 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
           )}
           <div className="col-span-2">
             <Field label="Full Name" name="name" form={form} errors={errors} onChange={handleChange} isView={isView} />
-            <p className="mt-1 text-xs text-gray-400">Enter as Lastname, Firstname, Middle Initial.</p>
           </div>
-          <ProgramField
-            programs={programs}
-            selected={form.programs}
-            isView={isView}
-            loading={programsLoading}
-            error={programsError}
-            fieldError={errors.programs}
-            onToggle={toggleProgram}
-          />
+          <div className="col-span-2">
+            <Field label="Type" name="type" options={FACULTY_TYPES} form={form} errors={errors} onChange={handleChange} isView={isView} />
+          </div>
+          {!isGEEDType(form.type) && (
+            <ProgramField
+              programs={programs}
+              selected={form.programs}
+              isView={isView}
+              loading={programsLoading}
+              error={programsError}
+              fieldError={errors.programs}
+              onToggle={toggleProgram}
+            />
+          )}
+          {isGEEDType(form.type) && !isView && (
+            <div className="col-span-2 text-xs text-gray-400">
+              GEED faculty do not require a selected program.
+            </div>
+          )}
           <Field label="Specialization" name="specialization" form={form} errors={errors} onChange={handleChange} isView={isView} />
           <div className="col-span-2">
             <Field label="Email" name="email" type="email" form={form} errors={errors} onChange={handleChange} isView={isView} />
