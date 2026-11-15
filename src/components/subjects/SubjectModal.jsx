@@ -75,6 +75,8 @@ const SubjectModal = ({
   curricula = [],
   coursesLoading = false,
   coursesError,
+  curriculaLoading = false,
+  curriculaError,
   onClose,
   onSubmit,
 }) => {
@@ -111,22 +113,10 @@ const SubjectModal = ({
 
   const curriculumOptions = dedupeOptions(
     (Array.isArray(curricula) ? curricula : [])
-      .filter((curriculum) => curriculum?.curriculum || curriculum?.name || curriculum?.program || curriculum?.id)
+      .filter((curriculum) => curriculum?.academicYear)
       .map((curriculum) => {
-        const candidates = [
-          curriculum?.curriculum,
-          curriculum?.program,
-          curriculum?.name,
-          curriculum?.id,
-        ]
-          .map((value) => String(value ?? "").trim())
-          .filter(Boolean);
-
-        const uniqueCandidates = [...new Set(candidates)];
-        const value = uniqueCandidates[0] || "";
-        const label = uniqueCandidates.length > 1 ? uniqueCandidates.slice(0, 2).join(" • ") : value;
-
-        return { value, label };
+        const academicYear = String(curriculum.academicYear).trim();
+        return { value: academicYear, label: academicYear };
       })
   );
 
@@ -351,7 +341,17 @@ const SubjectModal = ({
               label="Curriculum"
               name="curriculum"
               options={curriculumOptions}
-              placeholder={curricula.length ? "Select curriculum" : "No curriculum available"}
+              placeholder={
+                curriculaLoading
+                  ? "Loading curricula..."
+                  : curriculaError
+                    ? "Curricula unavailable"
+                    : curriculumOptions.length
+                      ? "Select curriculum"
+                      : "No curriculum available"
+              }
+              disabled={curriculaLoading || Boolean(curriculaError) || curriculumOptions.length === 0}
+              helpText={curriculaError ? "Curriculum options could not be loaded from the database." : ""}
               form={form}
               errors={errors}
               onChange={handleChange}

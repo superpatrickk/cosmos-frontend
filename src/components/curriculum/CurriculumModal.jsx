@@ -3,13 +3,16 @@ import {
   AlertCircle,
   X,
 } from "lucide-react";
-import { curriculumService } from "../../api/services/curriculumService";
+import { courseService } from "../../api/services/courseService";
 
 const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+const parseYearLevels = (values) => {
+  const source = Array.isArray(values) ? values : String(values ?? "").split(/\s*(?:,|&|\band\b)\s*/i);
+  return YEARS.filter((year) => source.some((value) => String(value).trim().toLowerCase() === year.toLowerCase()));
+};
 const EMPTY_FORM = {
-  curriculum: "",
   program: "",
-  yearLevel: "",
+  yearLevels: [],
   academicYear: "",
   description: "",
   status: "Active",
@@ -19,6 +22,8 @@ const EMPTY_FORM = {
 const cloneForm = (form = {}) => ({
   ...EMPTY_FORM,
   ...form,
+  yearLevels: parseYearLevels(form?.yearLevels?.length ? form.yearLevels : form?.yearLevel),
+  description: form?.description ?? "",
   subjects: Array.isArray(form?.subjects) ? form.subjects : [],
 });
 
@@ -42,53 +47,43 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [programOptions, setProgramOptions] = useState([]);
-  const [curriculumOptions, setCurriculumOptions] = useState([]);
-  const [academicYearOptions, setAcademicYearOptions] = useState([]);
+  const [programsLoading, setProgramsLoading] = useState(true);
+  const [programsError, setProgramsError] = useState(null);
 
   useEffect(() => {
     let mounted = true;
 
-    const loadOptions = async () => {
+    const loadPrograms = async () => {
+      setProgramsLoading(true);
+      setProgramsError(null);
       try {
-        const response = await curriculumService.getAll();
+        const response = await courseService.getAll();
         const data = response?.data ?? response ?? [];
-        const programs = Array.isArray(data)
-          ? [...new Set(data.map((item) => item.program).filter(Boolean))]
-          : [];
-        const curriculumItems = Array.isArray(data)
-          ? [...new Set(data.map((item) => {
-              const program = item.program;
-              const academicYear = item.academicYear;
-              if (!program || !academicYear) return null;
-              return `${program} • ${academicYear}`;
-            }).filter(Boolean))]
-          : [];
-        const academicYears = Array.isArray(data)
-          ? [...new Set(data.map((item) => item.academicYear).filter(Boolean))]
-          : [];
-
-        if (mounted) {
-          setProgramOptions(programs);
-          setCurriculumOptions(curriculumItems);
-          setAcademicYearOptions(academicYears);
+        if (!Array.isArray(data)) {
+          throw new Error("The program list returned an unexpected response.");
         }
-      } catch {
+        if (mounted) {
+          const programs = [...new Map(
+            data
+              .map((item) => [item.code || item.program || item.department, item])
+              .filter(([code]) => Boolean(code))
+          ).values()];
+          setProgramOptions(programs);
+        }
+      } catch (error) {
         if (mounted) {
           setProgramOptions([]);
-          setCurriculumOptions([]);
-          setAcademicYearOptions([]);
+          setProgramsError(error?.response?.data?.message || error?.message || "Failed to load programs.");
         }
+      } finally {
+        if (mounted) setProgramsLoading(false);
       }
     };
 
-    loadOptions();
-
-    setForm(cloneForm(data));
-    setErrors({});
-    setSubmitError(null);
+    loadPrograms();
 
     return () => { mounted = false; };
-  }, [data, mode]);
+  }, []);
 
   const updateForm = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -97,10 +92,9 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
   const validate = () => {
     const messages = [];
 
-    if (!form.curriculum) messages.push("Curriculum is required.");
     if (!form.program) messages.push("Program is required.");
-    if (!form.yearLevel) messages.push("Year level is required.");
-    if (!form.academicYear) messages.push("Academic year is required.");
+    if (!form.yearLevels.length) messages.push("Select at least one year level.");
+    if (!form.academicYear.trim()) messages.push("Academic year is required.");
 
     return messages;
   };
@@ -114,14 +108,15 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
 
     setLoading(true);
     setSubmitError(null);
-
     try {
       const payload = {
         ...form,
-        description: form.curriculum,
-        semester: "1st Semester",
-        status: "Active",
-        subjects: [],
+        yearLevel: form.yearLevels.join(", "),
+        yearLevels: form.yearLevels,
+        description: form.description?.trim() || "",
+        semester: form.semester || "1st Semester",
+        status: form.status || "Active",
+        subjects: Array.isArray(form.subjects) ? form.subjects : [],
       };
 
       await onSubmit(payload);
@@ -182,33 +177,73 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
             </div>
           )}
 
+          {programsError && (
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-sm font-semibold text-red-700">Programs could not be loaded</p>
+              <p className="mt-1 text-xs text-red-600">{programsError}</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
-            <Select
+            <TextInput
               label="Curriculum"
-              value={form.curriculum}
-              onChange={(value) => updateForm("curriculum", value)}
-              options={curriculumOptions}
+              value={form.academicYear}
+              onChange={(value) => updateForm("academicYear", value)}
+              placeholder="e.g. 2026-2027"
               span={2}
             />
             <Select
               label="Program"
               value={form.program}
               onChange={(value) => updateForm("program", value)}
-              options={programOptions}
+              options={[...new Set([
+                ...programOptions.map((program) => program.code || program.program || program.department),
+                ...(form.program ? [form.program] : []),
+              ])]}
+              disabled={programsLoading || Boolean(programsError) || programOptions.length === 0}
+              placeholder={
+                programsLoading
+                  ? "Loading programs..."
+                  : programsError
+                    ? "Programs unavailable"
+                    : programOptions.length
+                      ? "Select Program"
+                      : "Add a program first"
+              }
               span={2}
             />
-            <Select
-              label="Year Level"
-              value={form.yearLevel}
-              onChange={(value) => updateForm("yearLevel", value)}
-              options={YEARS}
-            />
-            <Select
-              label="Academic Year"
-              value={form.academicYear}
-              onChange={(value) => updateForm("academicYear", value)}
-              options={academicYearOptions}
-            />
+            <div className="col-span-2 flex flex-col gap-2">
+              <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                Year Level
+              </label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {YEARS.map((year) => {
+                  const selected = form.yearLevels.includes(year);
+                  return (
+                    <label
+                      key={year}
+                      className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition ${
+                        selected
+                          ? "border-pup-maroon bg-pup-maroon/5 text-pup-maroon"
+                          : "border-gray-200 bg-white text-slate-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => {
+                          const nextYears = selected
+                            ? form.yearLevels.filter((item) => item !== year)
+                            : [...form.yearLevels, year];
+                          updateForm("yearLevels", YEARS.filter((item) => nextYears.includes(item)));
+                        }}
+                        className="accent-pup-maroon"
+                      />
+                      <span>{year}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -221,7 +256,7 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || programsLoading || Boolean(programsError) || programOptions.length === 0}
             className="px-4 py-2 text-sm bg-pup-maroon text-white rounded-lg font-medium hover:bg-pup-maroon-dark transition-colors disabled:opacity-60"
           >
             {loading ? "Saving..." : mode === "add" ? "Add Curriculum" : "Save Changes"}
@@ -232,16 +267,25 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
   );
 };
 
-const Select = ({ label, value, onChange, options, span = 1 }) => (
+const Select = ({
+  label,
+  value,
+  onChange,
+  options,
+  span = 1,
+  disabled = false,
+  placeholder = `Select ${label}`,
+}) => (
   <div className={`flex flex-col gap-1 ${span === 2 ? "col-span-2" : ""}`}>
     <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</label>
     <div className="relative">
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2.5 pr-9 text-sm text-slate-700 transition focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
+        disabled={disabled}
+        className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2.5 pr-9 text-sm text-slate-700 transition focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
       >
-        {!value && <option value="">Select {label}</option>}
+        {!value && <option value="">{placeholder}</option>}
         {options.map((option) => (
           <option key={option} value={option}>{option}</option>
         ))}
@@ -252,6 +296,20 @@ const Select = ({ label, value, onChange, options, span = 1 }) => (
         </svg>
       </span>
     </div>
+  </div>
+);
+
+const TextInput = ({ label, value, onChange, placeholder, maxLength, span = 1 }) => (
+  <div className={`flex flex-col gap-1 ${span === 2 ? "col-span-2" : ""}`}>
+    <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</label>
+    <input
+      type="text"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      maxLength={maxLength}
+      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-slate-700 transition placeholder:text-slate-400 focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
+    />
   </div>
 );
 

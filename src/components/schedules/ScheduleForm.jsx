@@ -28,7 +28,7 @@ const EMPTY_FORM = {
 
 const SCHOOL_YEARS = ["2024-2025", "2025-2026", "2026-2027"];
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
-const SECTION_OPTIONS = ["Section 1", "Section 2", "Section 3"];
+const SECTION_OPTIONS = ["Section 1", "Section 2", "Section 3", "Section 4"];
 const SCHEDULE_TYPES = ["Lecture", "Laboratory", "Lec/Lab"];
 
 const normalizeText = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
@@ -134,7 +134,7 @@ const RoomField = ({ form, errors, rooms, onChange, roomsLoading, roomsError }) 
 };
 
 const ScheduleForm = ({
-  subjects, faculty, facultyLoading, facultyError, rooms, roomsLoading, roomsError, courses, days,
+  subjects, faculty, facultyLoading, facultyError, rooms, roomsLoading, roomsError, days,
   onCheckConflicts, onAddSchedule, loading, conflictResult, onClearConflict,
 }) => {
   const [form, setForm] = useState(EMPTY_FORM);
@@ -172,18 +172,40 @@ const ScheduleForm = ({
   const yearLevelOptions = useMemo(() => {
     if (!form.program) return YEAR_LEVELS;
     const matching = curricula.filter((curriculum) => normalizeProgram(curriculum?.program) === normalizeProgram(form.program));
-    const yearLevels = matching.map((curriculum) => curriculum?.yearLevel).filter(Boolean);
+    const yearLevels = matching.flatMap((curriculum) => {
+      if (Array.isArray(curriculum?.yearLevels) && curriculum.yearLevels.length) {
+        return curriculum.yearLevels;
+      }
+      return String(curriculum?.yearLevel ?? "").split(/\s*(?:,|&|\band\b)\s*/i);
+    }).filter(Boolean);
     if (yearLevels.length) return [...new Set(yearLevels)];
     return YEAR_LEVELS;
   }, [curricula, form.program]);
 
+  const selectedCurriculum = useMemo(
+    () => curricula.find((curriculum) => String(curriculum.id) === String(form.curriculum)) ?? null,
+    [curricula, form.curriculum]
+  );
+
   const filteredCourses = useMemo(() => {
-    if (!form.program) return courses;
-    return courses.filter((course) => {
-      const department = normalizeProgram(course?.department ?? course?.program ?? "");
-      return !department || department === normalizeProgram(form.program);
-    });
-  }, [courses, form.program]);
+    if (!form.program || !form.yearLevel) return [];
+    return subjects
+      .filter((subject) => {
+        const subjectProgram = subject.course ?? subject.program ?? subject.department;
+        const matchesProgram = normalizeProgram(subjectProgram) === normalizeProgram(form.program);
+        const matchesYearLevel = normalizeText(subject.yearLevel).toLowerCase()
+          === normalizeText(form.yearLevel).toLowerCase();
+        const matchesSemester = !selectedCurriculum?.semester
+          || normalizeText(subject.semester).toLowerCase()
+            === normalizeText(selectedCurriculum.semester).toLowerCase();
+        const isActive = !subject.status || String(subject.status).toLowerCase() === "active";
+        return matchesProgram && matchesYearLevel && matchesSemester && isActive;
+      })
+      .map((subject) => ({
+        ...subject,
+        name: subject.name || subject.description || subject.code,
+      }));
+  }, [subjects, form.program, form.yearLevel, selectedCurriculum]);
 
   const filteredFaculty = useMemo(() => {
     if (!form.program) return faculty;
@@ -199,8 +221,8 @@ const ScheduleForm = ({
   }, [faculty, form.program]);
 
   const buildPayload = () => {
-    const selectedCourse = courses.find((course) => String(course?.id ?? course?.code) === String(form.course)) ??
-      courses.find((course) => normalizeText(course?.code) === normalizeText(form.course)) ??
+    const selectedCourse = subjects.find((subject) => String(subject?.id ?? subject?.code) === String(form.course)) ??
+      subjects.find((subject) => normalizeText(subject?.code) === normalizeText(form.course)) ??
       null;
     const selectedFaculty = faculty.find((member) => String(member?.id ?? member?.name) === String(form.faculty)) ??
       faculty.find((member) => normalizeText(member?.name) === normalizeText(form.faculty)) ??
@@ -208,8 +230,6 @@ const ScheduleForm = ({
     const selectedRoom = rooms.find((room) => String(room?.id ?? room?.code) === String(form.room)) ??
       rooms.find((room) => normalizeText(room?.code) === normalizeText(form.room)) ??
       null;
-    const selectedCurriculum = curricula.find((curriculum) => String(curriculum?.id) === String(form.curriculum)) ?? null;
-
     return {
       schoolYear: form.schoolYear,
       curriculumId: form.curriculum,
@@ -228,7 +248,7 @@ const ScheduleForm = ({
       startTime2: form.startTime2,
       endTime2: form.endTime2,
       type: form.type,
-      courseCode: selectedCourse?.code ?? form.course,
+      courseCode: form.program,
       semester: selectedCurriculum?.semester ?? "1st Semester",
       academicYear: form.schoolYear || selectedCurriculum?.academicYear || "2025-2026",
       status: "Active",
@@ -276,10 +296,18 @@ const ScheduleForm = ({
       if (name === "curriculum") {
         const selectedCurriculum = curricula.find((curriculum) => String(curriculum.id) === String(value));
         if (selectedCurriculum) {
+          next.program = "";
+          const years = Array.isArray(selectedCurriculum.yearLevels) && selectedCurriculum.yearLevels.length
+            ? selectedCurriculum.yearLevels
+            : String(selectedCurriculum.yearLevel ?? "").split(/\s*(?:,|&|\band\b)\s*/i).filter(Boolean);
+          next.yearLevel = years.length === 1 ? years[0] : "";
           next.program = selectedCurriculum.program ?? prev.program;
-          next.yearLevel = selectedCurriculum.yearLevel ?? prev.yearLevel;
           next.schoolYear = selectedCurriculum.academicYear ?? prev.schoolYear;
         }
+      }
+
+      if (["curriculum", "program", "yearLevel"].includes(name)) {
+        next.course = "";
       }
 
       if (name === "type" && value !== "Lec/Lab") {
@@ -387,16 +415,6 @@ const ScheduleForm = ({
         />
 
         <SelectField
-          label="Program"
-          name="program"
-          options={programOptions}
-          form={form}
-          errors={errors}
-          onChange={handleChange}
-          placeholder="Select Program"
-        />
-
-        <SelectField
           label="Year Level"
           name="yearLevel"
           options={yearLevelOptions}
@@ -414,6 +432,17 @@ const ScheduleForm = ({
           errors={errors}
           onChange={handleChange}
           placeholder="Select Section"
+        />
+
+        <SelectField
+          label="Program"
+          name="program"
+          options={programOptions}
+          form={form}
+          errors={errors}
+          onChange={handleChange}
+          placeholder={form.section ? "Select Program" : "Select a section first"}
+          disabled={!form.section}
         />
 
         <SelectField
@@ -540,7 +569,7 @@ const ConflictChecker = ({ result }) => {
         <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" />
         <div>
           <p className="text-sm font-semibold text-green-700">No Conflicts Found</p>
-          <p className="text-xs text-green-600 mt-0.5">The selected room and time slot are available.</p>
+          <p className="text-xs text-green-600 mt-0.5">The selected faculty, room, and section are available at this time.</p>
         </div>
       </div>
     );
@@ -554,7 +583,7 @@ const ConflictChecker = ({ result }) => {
           <p className="text-sm font-semibold text-red-700">
             {result.conflicts.length} Conflict{result.conflicts.length > 1 ? "s" : ""} Detected
           </p>
-          <p className="text-xs text-red-600 mt-0.5">The following schedules overlap with the selected room and time slot.</p>
+          <p className="text-xs text-red-600 mt-0.5">The following schedules conflict with the selected faculty, room, or section.</p>
         </div>
       </div>
 

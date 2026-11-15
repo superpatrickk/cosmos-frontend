@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { authService } from "../../api/services/authService";
 import { Eye, EyeOff } from "lucide-react";
 import campusBackground from "../../assets/campus-background.png";
 import cosmosLogo from "../../assets/cosmos-logo-final.png";
@@ -12,6 +13,10 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotPassword, setForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -26,6 +31,37 @@ const LoginPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = async (event) => {
+    event.preventDefault();
+    setError("");
+    setResetLoading(true);
+    try {
+      await authService.requestPasswordReset(resetEmail);
+      setResetSent(true);
+    } catch (err) {
+      const responseMessage = err.response?.data?.message;
+      setError(
+        typeof responseMessage === "string"
+          ? responseMessage
+          : "Unable to send reset instructions. Please try again later."
+      );
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const openForgotPassword = () => {
+    setError("");
+    setResetSent(false);
+    setForgotPassword(true);
+  };
+
+  const returnToLogin = () => {
+    setForgotPassword(false);
+    setResetSent(false);
+    setError("");
   };
 
   return (
@@ -62,6 +98,55 @@ const LoginPage = () => {
           </div>
           
 
+          {forgotPassword ? (
+            <section className="mt-5 text-left">
+              <h1 className="text-center text-lg font-semibold text-slate-800">
+                Reset your password
+              </h1>
+              <p className="mt-2 text-center text-sm leading-6 text-slate-600">
+                Enter the email address associated with your account. We’ll send reset instructions if an account is found.
+              </p>
+
+              {resetSent ? (
+                <div role="status" className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm leading-6 text-emerald-800">
+                  If an account exists for that email, password reset instructions will be sent. Check your inbox.
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="mt-5 space-y-4">
+                  <div>
+                    <label htmlFor="reset-email" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-700">
+                      Email address
+                    </label>
+                    <input
+                      id="reset-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={resetEmail}
+                      onChange={(event) => setResetEmail(event.target.value)}
+                      className="w-full rounded-[12px] border border-slate-300/80 bg-white/70 px-4 py-3 text-[15px] text-slate-800 placeholder:text-slate-400 transition focus:border-[#7a1228] focus:bg-white/80 focus:outline-none focus:ring-2 focus:ring-[#7a1228]/10"
+                    />
+                  </div>
+                  {error && <p role="alert" className="text-left text-xs font-medium text-red-600">{error}</p>}
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="w-full rounded-[12px] bg-[linear-gradient(135deg,_#8b1f2f_0%,_#6f1127_100%)] py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white transition disabled:cursor-wait disabled:opacity-70"
+                  >
+                    {resetLoading ? "Sending..." : "Send reset instructions"}
+                  </button>
+                </form>
+              )}
+              <button
+                type="button"
+                onClick={returnToLogin}
+                className="mt-4 w-full text-center text-sm font-medium text-[#7a1228] transition hover:text-[#5f1022]"
+              >
+                Back to sign in
+              </button>
+            </section>
+          ) : (
           <form onSubmit={handleSubmit} className="mt-5 space-y-4 text-left">
             <div>
               <label htmlFor="username" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-700">
@@ -79,9 +164,18 @@ const LoginPage = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-700">
-                Password
-              </label>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label htmlFor="password" className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-700">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={openForgotPassword}
+                  className="text-xs font-medium text-[#7a1228] transition hover:text-[#5f1022]"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative">
                 <input
                   id="password"
@@ -115,6 +209,7 @@ const LoginPage = () => {
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
+          )}
         </div>
       </div>
     </div>

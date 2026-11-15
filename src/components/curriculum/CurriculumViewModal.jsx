@@ -18,10 +18,10 @@ const CurriculumViewModal = ({ open, data, onClose, onEdit }) => {
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-800">
-                {data.program} - {data.yearLevel}
+                {data.description || `${data.program} - ${data.yearLevel}`}
               </h2>
               <p className="text-xs text-gray-400 mt-0.5">
-                {data.semester} - {data.academicYear} - {data.id}
+                {data.program} - {data.yearLevels?.join(", ") || data.yearLevel} - {data.semester} - {data.academicYear} - {data.id}
               </p>
             </div>
           </div>

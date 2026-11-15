@@ -19,6 +19,7 @@ import { curriculumService } from "../../api/services/curriculumService";
 import { scheduleService } from "../../api/services/scheduleService";
 import { roomService } from "../../api/services/roomService";
 import { facultyService } from "../../api/services/facultyService";
+import { subjectService } from "../../api/services/subjectService";
 
 const EMPTY_ASSIGNMENT = {
   faculty: "",
@@ -29,6 +30,19 @@ const EMPTY_ASSIGNMENT = {
 
 const normalizeSection = (section) =>
   String(section || "").replace(/^section\s+/i, "").trim().toUpperCase();
+
+const expandYearLevels = (yearLevels) => {
+  const values = Array.isArray(yearLevels)
+    ? yearLevels
+    : String(yearLevels ?? "").split(/\s*(?:,|&|\band\b)\s*/i);
+  return values.map((year) => String(year ?? "").trim().toLowerCase()).filter(Boolean);
+};
+
+const normalizeYearLevelLabel = (yearLevel) => {
+  const value = String(yearLevel ?? "").trim();
+  const supportedYears = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+  return supportedYears.find((year) => year.toLowerCase() === value.toLowerCase()) || value;
+};
 
 // Rooms fetched from backend
 const useRooms = () => {
@@ -266,8 +280,10 @@ const AssignScheduleForm = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [savedMode, setSavedMode] = useState("");
-  const [subjectSearch, setSubjectSearch] = useState("");
   const [availableCurricula, setAvailableCurricula] = useState([]);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
+  const [subjectsError, setSubjectsError] = useState(null);
   const [facultyList, setFacultyList] = useState([]);
   const [availLoading, setAvailLoading] = useState(false);
   const [availError, setAvailError] = useState(null);
@@ -316,6 +332,35 @@ const AssignScheduleForm = () => {
     return () => { mounted = false; };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    const fetchSubjects = async () => {
+      setSubjectsLoading(true);
+      try {
+        const res = await subjectService.getAll();
+        const data = res?.data ?? res;
+        if (!Array.isArray(data)) {
+          throw new Error("The subject catalog returned an unexpected response.");
+        }
+        if (mounted) {
+          setAvailableSubjects(data);
+          setSubjectsError(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch subjects for curriculum files:", err);
+        if (mounted) {
+          setAvailableSubjects([]);
+          setSubjectsError(err?.response?.data?.message || err?.message || "Failed to load subjects.");
+        }
+      } finally {
+        if (mounted) setSubjectsLoading(false);
+      }
+    };
+
+    fetchSubjects();
+    return () => { mounted = false; };
+  }, []);
+
   const programOptions = useMemo(
     () => [...new Set(availableCurricula.map((item) => item.program).filter(Boolean))],
     [availableCurricula]
@@ -337,33 +382,70 @@ const AssignScheduleForm = () => {
 
   const conflictCount = Object.values(conflictMap).reduce((sum, messages) => sum + messages.length, 0);
 
-  const visibleCurriculum = useMemo(() => {
-    const q = subjectSearch.trim().toLowerCase();
-    if (!q) return curriculum;
-    return curriculum.filter((subject) =>
-      [subject.code, subject.description, subject.type]
-        .join(" ")
-        .toLowerCase()
-        .includes(q)
-    );
-  }, [curriculum, subjectSearch]);
-
   const totalSubjects = curriculum.length;
   const assignedCount = Object.values(assignments).filter(
     (assignment) => assignment.faculty && assignment.day && assignment.timeSlot && assignment.room
   ).length;
   const allAssigned = totalSubjects > 0 && assignedCount === totalSubjects;
   const canSave = allAssigned && conflictCount === 0; // Only save if all assigned AND no conflicts
-  const selectedCurriculum = availableCurricula.find((item) => item.id === filters.curriculumId);
+  const selectedCurriculum = availableCurricula.find(
+    (item) => String(item.id) === String(filters.curriculumId)
+  );
+  const selectedCurriculumYearLevels = selectedCurriculum
+    ? (selectedCurriculum.yearLevels?.length
+      ? selectedCurriculum.yearLevels
+      : expandYearLevels(selectedCurriculum.yearLevel))
+    : [];
+  const yearLevelOptions = selectedCurriculumYearLevels.map((yearLevel) => {
+    const text = normalizeYearLevelLabel(yearLevel);
+    return {
+      value: text,
+      label: text,
+    };
+  });
+  const curriculumSubjects = useMemo(() => {
+    if (!selectedCurriculum) return [];
+    const normalize = (value) => String(value ?? "").trim().toUpperCase();
+    const selectedYear = normalize(filters.yearLevel);
+    if (!selectedYear) return [];
+
+    if (selectedCurriculum.subjects?.length) {
+      return selectedCurriculum.subjects
+        .filter((subject) => !subject.yearLevel || normalize(subject.yearLevel) === selectedYear)
+        .map((subject) => ({
+          ...subject,
+          description: subject.description || subject.name || "",
+          units: Number(subject.units || 0),
+          yearLevel: subject.yearLevel || filters.yearLevel,
+          semester: subject.semester || selectedCurriculum.semester,
+        }));
+    }
+
+    return availableSubjects
+      .filter((subject) => {
+        const active = !subject.status || String(subject.status).toLowerCase() === "active";
+        const program = subject.course || subject.program || subject.department;
+        const matchesProgram = normalize(program) === normalize(selectedCurriculum.program);
+        const matchesYear = normalize(subject.yearLevel) === selectedYear;
+        const matchesSemester = normalize(subject.semester) === normalize(selectedCurriculum.semester);
+        return active && matchesProgram && matchesYear && matchesSemester;
+      })
+      .map((subject) => ({
+        ...subject,
+        description: subject.description || subject.name || "",
+        units: Number(subject.units || 0),
+        yearLevel: subject.yearLevel || filters.yearLevel,
+        semester: subject.semester || selectedCurriculum.semester,
+      }));
+  }, [availableSubjects, filters.yearLevel, selectedCurriculum]);
 
   const courseGroups = useMemo(() => {
     const groups = new Map();
     const yearOrder = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 
-    curriculum.forEach((subject, index) => {
+    curriculum.forEach((subject) => {
       const rawYear = String(subject.yearLevel || subject.year || subject.level || subject.yearName || "").trim();
-      const fallbackYear = rawYear || yearOrder[Math.min(index, yearOrder.length - 1)];
-      const normalizedYear = fallbackYear
+      const normalizedYear = (rawYear || filters.yearLevel || "Courses")
         .replace(/\s+/g, " ")
         .trim();
 
@@ -372,15 +454,6 @@ const AssignScheduleForm = () => {
       }
       groups.get(normalizedYear).push(subject);
     });
-
-    if (!groups.size && curriculum.length) {
-      const firstHalf = curriculum.slice(0, Math.ceil(curriculum.length / 2));
-      const secondHalf = curriculum.slice(Math.ceil(curriculum.length / 2));
-      return [
-        { label: "First Year", subjects: firstHalf },
-        { label: "Second Year", subjects: secondHalf },
-      ];
-    }
 
     const orderedEntries = [...groups.entries()].sort(([a], [b]) => {
       const aIndex = yearOrder.indexOf(a);
@@ -392,13 +465,28 @@ const AssignScheduleForm = () => {
     });
 
     return orderedEntries.map(([label, subjects]) => ({ label, subjects }));
-  }, [curriculum]);
+  }, [curriculum, filters.yearLevel]);
 
   const updateFilter = (key, value) => {
     setFilters((prev) => {
       const next = { ...prev, [key]: value };
-      // Reset curriculum selection if program, year, or semester changes
-      if (["program", "yearLevel", "semester"].includes(key)) {
+      if (key === "curriculumId" && value) {
+        const selected = availableCurricula.find((item) => String(item.id) === String(value));
+        if (selected) {
+          next.program = selected.program || "";
+          const years = selected.yearLevels?.length
+            ? selected.yearLevels
+            : expandYearLevels(selected.yearLevel);
+          next.yearLevel = years.length === 1 ? normalizeYearLevelLabel(years[0]) : "";
+          next.semester = selected.semester || "";
+          next.academicYear = selected.academicYear || "";
+        }
+      } else if (key === "program") {
+        next.curriculumId = "";
+        next.yearLevel = "";
+        next.semester = "";
+        next.academicYear = "";
+      } else if (key === "semester") {
         next.curriculumId = "";
       }
       return next;
@@ -409,7 +497,7 @@ const AssignScheduleForm = () => {
     setSavedMode("");
   };
 
-  const canLoad = Boolean(filters.program && filters.curriculumId);
+  const canLoad = Boolean(filters.program && filters.curriculumId && filters.yearLevel);
 
   const handleLoadCurriculum = async () => {
     if (!canLoad) return;
@@ -417,8 +505,7 @@ const AssignScheduleForm = () => {
     setCurrLoaded(false);
     setSavedMode("");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const subjects = selectedCurriculum?.subjects ?? [];
+      const subjects = curriculumSubjects;
       setCurriculum(subjects);
       setAssignments(Object.fromEntries(subjects.map((subject) => [subject.id, { ...EMPTY_ASSIGNMENT }])));
       setCurrLoaded(true);
@@ -611,22 +698,34 @@ const AssignScheduleForm = () => {
         <div className="mb-5">
           <h2 className="text-base font-bold text-gray-800">Curriculum File</h2>
           <p className="mt-0.5 text-xs text-gray-400">
-            Select a curriculum and department to view the program and its courses.
+            Select a curriculum, year level, and program to view its courses.
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           <SelectField
             label="Curriculum"
             value={filters.curriculumId}
             onChange={(value) => updateFilter("curriculumId", value)}
-            options={curriculumOptions.map((item) => ({ value: item.id, label: item.version || item.name || "Curriculum" }))}
+            options={curriculumOptions.map((item) => ({
+              value: String(item.id),
+              label: item.academicYear || "-",
+            }))}
             placeholder={curriculumOptions.length ? "Select curriculum" : "No curriculum available"}
-            disabled={false}
+            disabled={availLoading || Boolean(availError) || curriculumOptions.length === 0}
           />
 
           <SelectField
-            label="Program (Department)"
+            label="Year Level"
+            value={filters.yearLevel}
+            onChange={(value) => updateFilter("yearLevel", value)}
+            options={yearLevelOptions}
+            placeholder={selectedCurriculum ? "Select year level" : "Select a curriculum first"}
+            disabled={!selectedCurriculum || yearLevelOptions.length === 0}
+          />
+
+          <SelectField
+            label="Program"
             value={filters.program}
             onChange={(value) => updateFilter("program", value)}
             options={programOptions.map((program) => ({ value: program, label: program }))}
@@ -636,32 +735,48 @@ const AssignScheduleForm = () => {
 
         {availLoading && <div className="mt-3 text-xs text-gray-400">Loading curriculum file...</div>}
         {availError && <div className="mt-3 text-xs text-red-600">{availError}</div>}
+        {subjectsError && <div className="mt-3 text-xs text-red-600">Could not load course details: {subjectsError}</div>}
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <button
             onClick={handleLoadCurriculum}
-            disabled={!canLoad || loadingCurr}
+            disabled={!canLoad || loadingCurr || availLoading || subjectsLoading}
             className="flex items-center gap-2 rounded-xl bg-pup-maroon px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-pup-maroon-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loadingCurr ? <><Loader2 size={15} className="animate-spin" /> Loading...</> : "View Curriculum File"}
+            {loadingCurr || subjectsLoading
+              ? <><Loader2 size={15} className="animate-spin" /> Loading...</>
+              : "View Curriculum File"}
           </button>
           {!canLoad && (
             <p className="text-xs text-gray-400">
-              Choose both a curriculum and program to view the course list.
+              Select a curriculum and year level. Its program and academic year will be filled in automatically.
             </p>
           )}
         </div>
       </div>
 
       {/* Curriculum Display and Assignment Section */}
-      {currLoaded && curriculum.length > 0 && (
+      {currLoaded && (
         <div className="overflow-hidden rounded-md border border-[#2f2f2f] bg-white shadow-sm">
           <div className="border-b border-[#2f2f2f] bg-[#efefef] px-3 py-2.5 text-center">
             <h3 className="text-[15px] font-black uppercase tracking-tight text-[#1f1f1f]">
-              {selectedCurriculum?.program || filters.program}
+              {selectedCurriculum?.description || selectedCurriculum?.program || filters.program}
             </h3>
+            <p className="mt-1 text-xs text-gray-600">
+              {[selectedCurriculum?.program, filters.yearLevel, selectedCurriculum?.semester, selectedCurriculum?.academicYear]
+                .filter(Boolean)
+                .join(" • ")}
+            </p>
           </div>
 
+          {curriculum.length === 0 ? (
+            <div className="px-6 py-10 text-center">
+              <p className="text-sm font-semibold text-gray-700">No courses found for this curriculum.</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Add active courses for {selectedCurriculum?.program} {filters.yearLevel} in Course Management, then try again.
+              </p>
+            </div>
+          ) : (
           <div className="p-0">
             {courseGroups.map(({ label, subjects }) => (
               <div key={label} className="border-b border-[#2f2f2f] last:border-b-0">
@@ -677,6 +792,7 @@ const AssignScheduleForm = () => {
                       <th className="border border-[#2f2f2f] px-3 py-2 text-center">Lec</th>
                       <th className="border border-[#2f2f2f] px-3 py-2 text-center">Lab</th>
                       <th className="border border-[#2f2f2f] px-3 py-2 text-center">Units</th>
+                      <th className="border border-[#2f2f2f] px-3 py-2">Type</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -689,13 +805,16 @@ const AssignScheduleForm = () => {
                           {subject.description}
                         </td>
                         <td className="border border-[#2f2f2f] px-3 py-2 text-center text-[#2f2f2f]">
-                          {subject.lec ?? 0}
+                          {subject.lec ?? "—"}
                         </td>
                         <td className="border border-[#2f2f2f] px-3 py-2 text-center text-[#2f2f2f]">
-                          {subject.lab ?? 0}
+                          {subject.lab ?? "—"}
                         </td>
                         <td className="border border-[#2f2f2f] px-3 py-2 text-center font-semibold text-[#1f1f1f]">
                           {subject.units ?? 0}
+                        </td>
+                        <td className="border border-[#2f2f2f] px-3 py-2 text-[#2f2f2f]">
+                          {subject.type || "—"}
                         </td>
                       </tr>
                     ))}
@@ -704,6 +823,7 @@ const AssignScheduleForm = () => {
               </div>
             ))}
           </div>
+          )}
         </div>
       )}
       {/* Modals for confirmation and preview */}

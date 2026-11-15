@@ -13,8 +13,8 @@ import { curriculumService } from "../../api/services/curriculumService";
 const TABS = [
   { key: "assign", label: "Curriculum File", icon: CalendarDays },
   { key: "manage", label: "Manage Curriculum", icon: BookOpen },
+    { key: "programs", label: "Manage Program", icon: GraduationCap },
   { key: "courses", label: "Manage Course", icon: BookOpen },
-  { key: "programs", label: "Manage Program", icon: GraduationCap },
 ];
 
 const normalizeSubject = (item) => ({
@@ -65,7 +65,7 @@ const ProgramManager = () => {
   const filteredPrograms = useMemo(() => {
     const q = search.toLowerCase();
     return programs.filter((program) =>
-      [program.code, program.name, program.duration, program.department]
+      [program.code, program.name, program.duration]
         .join(" ")
         .toLowerCase()
         .includes(q)
@@ -147,20 +147,19 @@ const ProgramManager = () => {
                 <th className="px-4 py-3">Code</th>
                 <th className="px-4 py-3">Program Name</th>
                 <th className="px-4 py-3">Duration</th>
-                <th className="px-4 py-3">Department</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">
                     <Loader2 size={16} className="mx-auto animate-spin text-gray-400" />
                   </td>
                 </tr>
               ) : filteredPrograms.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">No programs found.</td>
+                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">No programs found.</td>
                 </tr>
               ) : (
                 filteredPrograms.map((program) => (
@@ -172,7 +171,6 @@ const ProgramManager = () => {
                     </td>
                     <td className="px-4 py-3 align-top text-gray-700">{program.name}</td>
                     <td className="px-4 py-3 align-top text-gray-700">{program.duration}</td>
-                    <td className="px-4 py-3 align-top text-gray-700">{program.department}</td>
                     <td className="px-4 py-3 align-top">
                       <div className="flex items-center justify-end gap-2">
                         <button

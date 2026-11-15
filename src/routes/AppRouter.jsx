@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
 import MainLayout from "../components/layout/MainLayout";
 import LoginPage from "../pages/auth/LoginPage";
+import ResetPasswordPage from "../pages/auth/ResetPasswordPage";
 import DashboardPage from "../pages/dashboard/DashboardPage";
 import FacultyPage from "../pages/faculty/FacultyPage";
 import CoursesPage from "../pages/courses/CoursesPage";
@@ -24,6 +25,7 @@ const AppRouter = () => {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route path="/dashboard" element={
           <ProtectedRoute>

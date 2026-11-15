@@ -12,4 +12,10 @@ export const authService = {
 
   getCurrentUser: () =>
     axiosInstance.get("/auth/me"),
+
+  requestPasswordReset: (email) =>
+    axiosInstance.post("/auth/forgot-password", { email }),
+
+  resetPassword: (credentials) =>
+    axiosInstance.post("/auth/reset-password", credentials),
 };

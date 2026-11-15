@@ -18,6 +18,21 @@ const inferTags = (subject) => {
   return [...new Set(tags.length ? tags : ["general"])];
 };
 
+export const normalizeCurriculumYearLevels = (curriculum) => {
+  const values = Array.isArray(curriculum?.yearLevels)
+    ? curriculum.yearLevels
+    : String(curriculum?.yearLevel ?? "").split(/\s*(?:,|&|\band\b)\s*/i);
+  const supportedYears = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+  const normalized = values
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
+  const canonicalYears = supportedYears.filter((year) =>
+    normalized.some((value) => value.toLowerCase() === year.toLowerCase())
+  );
+  return canonicalYears.length ? canonicalYears : normalized;
+};
+
 export const loadCurricula = () => {
   if (!canUseStorage()) return DEFAULT_CURRICULA;
 
@@ -36,6 +51,7 @@ export const saveCurricula = (curricula) => {
 
 export const normalizeSchedulingCurriculum = (curriculum) => ({
   ...curriculum,
+  yearLevels: normalizeCurriculumYearLevels(curriculum),
   version: curriculum.version || `${curriculum.program} ${curriculum.academicYear} Curriculum`,
   subjects: (curriculum.subjects || []).map((subject, index) => ({
     id: subject.id || `${curriculum.id}-S${String(index + 1).padStart(3, "0")}`,

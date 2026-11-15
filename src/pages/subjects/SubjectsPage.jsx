@@ -6,6 +6,7 @@ import SubjectModal from "../../components/subjects/SubjectModal";
 import SubjectViewModal from "../../components/subjects/SubjectViewModal";
 import { subjectService } from "../../api/services/subjectService";
 import { courseService } from "../../api/services/courseService";
+import { curriculumService } from "../../api/services/curriculumService";
 import {
   BookMarked, FlaskConical, BookOpen,
   Filter, ChevronLeft, ChevronRight,
@@ -28,6 +29,9 @@ const SubjectsPage = () => {
   const [courses, setCourses]           = useState([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [coursesError, setCoursesError] = useState(null);
+  const [curricula, setCurricula] = useState([]);
+  const [curriculaLoading, setCurriculaLoading] = useState(true);
+  const [curriculaError, setCurriculaError] = useState(null);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [search, setSearch]             = useState("");
@@ -76,6 +80,28 @@ const SubjectsPage = () => {
       }
     };
     fetchCourses();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchCurricula = async () => {
+      setCurriculaLoading(true);
+      setCurriculaError(null);
+      try {
+        const response = await curriculumService.getAll();
+        const data = response?.data ?? response;
+        if (mounted) setCurricula(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (mounted) {
+          setCurricula([]);
+          setCurriculaError(err?.response?.data?.message || err?.message || "Failed to load curricula.");
+        }
+      } finally {
+        if (mounted) setCurriculaLoading(false);
+      }
+    };
+    fetchCurricula();
     return () => { mounted = false; };
   }, []);
 
@@ -442,8 +468,11 @@ const SubjectsPage = () => {
         mode={modalMode}
         data={selected}
         courses={courses}
+        curricula={curricula}
         coursesLoading={coursesLoading}
         coursesError={coursesError}
+        curriculaLoading={curriculaLoading}
+        curriculaError={curriculaError}
         onClose={() => setModalOpen(false)}
         onSubmit={handleModalSubmit}
       />

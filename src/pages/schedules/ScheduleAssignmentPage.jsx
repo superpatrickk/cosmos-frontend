@@ -260,7 +260,6 @@ const ScheduleAssignmentPage = () => {
           rooms={rooms}
           roomsLoading={roomsLoading}
           roomsError={roomsError}
-          courses={courses}
           days={DAYS}
           onCheckConflicts={handleCheckConflicts}
           onAddSchedule={handleAddSchedule}

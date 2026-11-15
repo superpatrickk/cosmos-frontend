@@ -29,7 +29,14 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    const authEndpoints = ["/auth/login", "/auth/refresh", "/auth/logout", "/auth/me"];
+    const authEndpoints = [
+      "/auth/login",
+      "/auth/refresh",
+      "/auth/logout",
+      "/auth/me",
+      "/auth/forgot-password",
+      "/auth/reset-password",
+    ];
     const isAuthEndpoint = authEndpoints.some((endpoint) =>
       originalRequest?.url?.endsWith(endpoint)
     );

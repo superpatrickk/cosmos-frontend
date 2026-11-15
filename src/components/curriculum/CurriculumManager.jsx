@@ -24,7 +24,7 @@ const CurriculumManager = () => {
 
   const filtered = useMemo(() =>
     curricula.filter((c) => {
-      const matchSearch = [c.program, c.yearLevel, c.academicYear, c.status]
+      const matchSearch = [c.description, c.program, c.yearLevels?.join(" "), c.yearLevel, c.academicYear, c.status]
         .join(" ")
         .toLowerCase()
         .includes(search.toLowerCase());
@@ -159,10 +159,9 @@ const CurriculumManager = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50 text-[11px] font-bold uppercase tracking-[0.08em] text-gray-500">
-              <th className="px-6 py-3 text-left">ID</th>
+              <th className="px-6 py-3 text-left">Curriculum</th>
               <th className="px-6 py-3 text-left">Program</th>
               <th className="px-6 py-3 text-left">Year Level</th>
-              <th className="px-6 py-3 text-left">Academic Year</th>
               <th className="px-6 py-3 text-left">Status</th>
               <th className="px-6 py-3 text-right">Actions</th>
             </tr>
@@ -170,7 +169,7 @@ const CurriculumManager = () => {
           <tbody>
             {loading && [...Array(3)].map((_, i) => (
               <tr key={i} className="border-b border-gray-50 animate-pulse">
-                {[...Array(6)].map((_, j) => (
+                {[...Array(5)].map((_, j) => (
                   <td key={j} className="px-6 py-4">
                     <div className="h-4 bg-gray-100 rounded w-20" />
                   </td>
@@ -180,7 +179,7 @@ const CurriculumManager = () => {
 
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center">
+                <td colSpan={5} className="px-6 py-12 text-center">
                   <BookOpen size={32} className="text-gray-200 mx-auto mb-2" />
                   <p className="text-sm text-gray-400">No curricula found.</p>
                 </td>
@@ -189,14 +188,15 @@ const CurriculumManager = () => {
 
             {!loading && filtered.map((c) => (
               <tr key={c.id} className="border-b border-gray-50 transition-colors hover:bg-gray-50">
-                <td className="px-6 py-4 text-xs font-medium text-gray-400">{c.id}</td>
+                <td className="px-6 py-4 text-sm font-medium text-gray-700">
+                  {c.academicYear || "-"}
+                </td>
                 <td className="px-6 py-4">
                   <span className="inline-flex rounded-full bg-pup-maroon/10 px-2 py-1 text-xs font-semibold text-pup-maroon">
                     {c.program}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-700">{c.yearLevel}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">{c.academicYear}</td>
+                <td className="px-6 py-4 text-sm text-gray-700">{c.yearLevels?.join(", ") || c.yearLevel}</td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                     c.status === "Active"
@@ -261,7 +261,7 @@ const CurriculumManager = () => {
       <ConfirmDialog
         open={confirmOpen}
         title="Delete Curriculum"
-        message={`Are you sure you want to delete the ${deleteTarget?.program} ${deleteTarget?.yearLevel} curriculum? This cannot be undone.`}
+        message={`Are you sure you want to delete the ${deleteTarget?.program} ${deleteTarget?.yearLevels?.join(", ") || deleteTarget?.yearLevel} curriculum? This cannot be undone.`}
         confirmLabel="Delete"
         confirmStyle="danger"
         loading={deleteLoading}
