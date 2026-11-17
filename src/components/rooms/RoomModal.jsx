@@ -57,6 +57,7 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
   const [form, setForm]       = useState(EMPTY_FORM);
   const [errors, setErrors]   = useState({});
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [buildings, setBuildings] = useState([]);
   const [floors, setFloors] = useState(FLOOR_OPTIONS);
   const [statuses, setStatuses] = useState([]);
@@ -67,6 +68,7 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
     if (open) {
       setForm(data ? { ...data } : EMPTY_FORM);
       setErrors({});
+      setSubmitError("");
     }
     // fetch metadata when modal opens
     let mounted = true;
@@ -103,7 +105,7 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
   const validate = () => {
     const e = {};
     if (!form.code || !form.code.trim()) e.code = "Room code is required.";
-    if (!form.name.trim())     e.name     = "Room description is required.";
+    if (!form.name || !form.name.trim()) e.name = "Room description is required.";
     if (!form.floor.trim())    e.floor    = "Floor is required.";
     if (!form.capacity || form.capacity < 1) e.capacity = "Capacity must be at least 1.";
     return e;
@@ -113,6 +115,7 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+    if (submitError) setSubmitError("");
   };
 
   // amenities removed from backend
@@ -121,13 +124,21 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
+    setSubmitError("");
     try {
       const safeForm = {
         ...form,
+        name: form.name.trim(),
         building: form.building?.trim() || "Main Building",
         status: form.status || "Available",
       };
       await onSubmit(safeForm);
+    } catch (error) {
+      const message = error?.response?.data?.message;
+      const validationMessage = message && typeof message === "object"
+        ? Object.values(message).join(" ")
+        : message;
+      setSubmitError(validationMessage || error?.message || "Failed to save room. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -159,6 +170,11 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
 
         {/* Body */}
         <div className="px-6 py-5 overflow-y-auto space-y-4">
+          {submitError && (
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {submitError}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <Field label="Code" name="code" form={form} errors={errors} onChange={handleChange} />
             <Field label="Room Description" name="name" span={2} form={form} errors={errors} onChange={handleChange} />

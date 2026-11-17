@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  BookOpen,
+  CalendarDays,
   CheckCircle2,
+  Clock3,
+  DoorOpen,
   Loader2,
   Plus,
   RefreshCw,
+  UserRound,
 } from "lucide-react";
 import { curriculumService } from "../../api/services/curriculumService";
+import TimeField, { isHalfHourTime } from "./TimeField";
 
 const EMPTY_FORM = {
   schoolYear: "",
@@ -32,6 +38,13 @@ const SECTION_OPTIONS = ["Section 1", "Section 2", "Section 3", "Section 4"];
 const SCHEDULE_TYPES = ["Lecture", "Laboratory", "Lec/Lab"];
 
 const normalizeText = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
+const formatTimeLabel = (time) => {
+  if (!time) return "";
+  const [hours, minutes] = time.split(":").map(Number);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return time;
+  const period = hours < 12 ? "AM" : "PM";
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, "0")} ${period}`;
+};
 const normalizeProgram = (value) => normalizeText(value).replace(/^program\s+/i, "").toUpperCase();
 const normalizeFacultyProgram = (value) => normalizeText(value).replace(/\s*\([^)]*\)/g, "").trim().toUpperCase();
 const parseProgramList = (value) => String(value ?? "")
@@ -141,6 +154,8 @@ const ScheduleForm = ({
   const [errors, setErrors] = useState({});
   const [checking, setChecking] = useState(false);
   const [curricula, setCurricula] = useState([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingSchedule, setPendingSchedule] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -233,6 +248,7 @@ const ScheduleForm = ({
     return {
       schoolYear: form.schoolYear,
       curriculumId: form.curriculum,
+      curriculumName: selectedCurriculum?.curriculum ?? selectedCurriculum?.name ?? "",
       program: form.program,
       yearLevel: form.yearLevel,
       section: form.section,
@@ -269,6 +285,12 @@ const ScheduleForm = ({
     if (!form.day) nextErrors.day = "Required";
     if (!form.startTime) nextErrors.startTime = "Required";
     if (!form.endTime) nextErrors.endTime = "Required";
+    if (form.startTime && !isHalfHourTime(form.startTime)) {
+      nextErrors.startTime = "Choose a time in 30-minute increments.";
+    }
+    if (form.endTime && !isHalfHourTime(form.endTime)) {
+      nextErrors.endTime = "Choose a time in 30-minute increments.";
+    }
     if (!form.room) nextErrors.room = "Required";
 
     if (form.startTime && form.endTime && form.startTime >= form.endTime) {
@@ -279,6 +301,12 @@ const ScheduleForm = ({
       if (!form.day2) nextErrors.day2 = "Required";
       if (!form.startTime2) nextErrors.startTime2 = "Required";
       if (!form.endTime2) nextErrors.endTime2 = "Required";
+      if (form.startTime2 && !isHalfHourTime(form.startTime2)) {
+        nextErrors.startTime2 = "Choose a time in 30-minute increments.";
+      }
+      if (form.endTime2 && !isHalfHourTime(form.endTime2)) {
+        nextErrors.endTime2 = "Choose a time in 30-minute increments.";
+      }
       if (form.startTime2 && form.endTime2 && form.startTime2 >= form.endTime2) {
         nextErrors.endTime2 = "Second end time must be after the second start time.";
       }
@@ -362,16 +390,27 @@ const ScheduleForm = ({
       return;
     }
 
-    const success = await onAddSchedule(buildPayload());
+    setPendingSchedule(buildPayload());
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmAdd = async () => {
+    if (!pendingSchedule) return;
+
+    const success = await onAddSchedule(pendingSchedule);
     if (success) {
       setForm(EMPTY_FORM);
       setErrors({});
+      setConfirmOpen(false);
+      setPendingSchedule(null);
     }
   };
 
   const handleReset = () => {
     setForm(EMPTY_FORM);
     setErrors({});
+    setPendingSchedule(null);
+    setConfirmOpen(false);
     onClearConflict();
   };
 
@@ -492,8 +531,8 @@ const ScheduleForm = ({
           placeholder="Select Day"
         />
 
-        <InputField label="Start Time" name="startTime" type="time" form={form} errors={errors} onChange={handleChange} step={1800} />
-        <InputField label="End Time" name="endTime" type="time" form={form} errors={errors} onChange={handleChange} step={1800} />
+        <TimeField label="Start Time" name="startTime" value={form.startTime} error={errors.startTime} onChange={handleChange} />
+        <TimeField label="End Time" name="endTime" value={form.endTime} error={errors.endTime} onChange={handleChange} />
 
         {form.type === "Lec/Lab" && (
           <>
@@ -506,8 +545,8 @@ const ScheduleForm = ({
               onChange={handleChange}
               placeholder="Select Second Day"
             />
-            <InputField label="Second Start Time" name="startTime2" type="time" form={form} errors={errors} onChange={handleChange} step={1800} />
-            <InputField label="Second End Time" name="endTime2" type="time" form={form} errors={errors} onChange={handleChange} step={1800} />
+            <TimeField label="Second Start Time" name="startTime2" value={form.startTime2} error={errors.startTime2} onChange={handleChange} />
+            <TimeField label="Second End Time" name="endTime2" value={form.endTime2} error={errors.endTime2} onChange={handleChange} />
           </>
         )}
 
@@ -556,6 +595,141 @@ const ScheduleForm = ({
           Cancel
         </button>
       </div>
+
+      {confirmOpen && pendingSchedule && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-white/10 p-4 backdrop-blur-[2px]"
+          role="presentation"
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="schedule-confirm-title"
+            className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+          >
+            <header className="flex items-start gap-3 border-b border-slate-100 px-6 py-5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pup-maroon/10 text-pup-maroon">
+                <CalendarDays size={20} />
+              </div>
+              <div>
+                <h2 id="schedule-confirm-title" className="text-base font-bold text-slate-800">
+                  Confirm schedule
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Review the assignment details before adding it.
+                </p>
+              </div>
+            </header>
+
+            <div className="max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">
+              <div className="rounded-xl border border-pup-maroon/15 bg-pup-maroon/[0.04] p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-md bg-pup-maroon px-2 py-1 text-xs font-bold text-white">
+                    {pendingSchedule.subjectCode}
+                  </span>
+                  <span className="text-xs font-medium text-slate-500">
+                    {pendingSchedule.type}
+                  </span>
+                </div>
+                <p className="mt-2 text-base font-semibold text-slate-800">
+                  {pendingSchedule.subjectName}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {pendingSchedule.program} <span className="text-slate-300">/</span>{" "}
+                  {pendingSchedule.yearLevel} <span className="text-slate-300">/</span>{" "}
+                  {pendingSchedule.section}
+                </p>
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Meeting time{pendingSchedule.day2 ? "s" : ""}
+                </h3>
+                <div className="space-y-2">
+                  {[
+                    {
+                      day: pendingSchedule.day,
+                      start: pendingSchedule.startTime,
+                      end: pendingSchedule.endTime,
+                    },
+                    ...(pendingSchedule.day2
+                      ? [{
+                          day: pendingSchedule.day2,
+                          start: pendingSchedule.startTime2,
+                          end: pendingSchedule.endTime2,
+                        }]
+                      : []),
+                  ].map((meeting, index) => (
+                    <div
+                      key={`${meeting.day}-${meeting.start}-${index}`}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <CalendarDays size={16} className="text-pup-maroon" />
+                        <span className="text-sm font-semibold text-slate-700">{meeting.day}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                        <Clock3 size={15} className="text-slate-400" />
+                        <span>{formatTimeLabel(meeting.start)} – {formatTimeLabel(meeting.end)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-slate-50 p-3.5">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <UserRound size={15} /> Faculty
+                  </div>
+                  <p className="mt-2 text-sm font-medium text-slate-800">{pendingSchedule.facultyName}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-3.5">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <DoorOpen size={15} /> Room
+                  </div>
+                  <p className="mt-2 text-sm font-medium text-slate-800">{pendingSchedule.roomName}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5 rounded-xl border border-slate-100 px-3.5 py-3 text-sm text-slate-600">
+                <BookOpen size={16} className="mt-0.5 shrink-0 text-slate-400" />
+                <div>
+                  <p className="font-medium text-slate-700">
+                    {pendingSchedule.curriculumName || "Curriculum"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {pendingSchedule.semester} · School Year {pendingSchedule.schoolYear}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <footer className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/70 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmOpen(false);
+                  setPendingSchedule(null);
+                }}
+                disabled={loading}
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                Back to form
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAdd}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-lg bg-pup-maroon px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-pup-maroon-dark disabled:cursor-wait disabled:opacity-60"
+              >
+                {loading && <Loader2 size={15} className="animate-spin" />}
+                {loading ? "Adding schedule..." : "Confirm and add"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
     </div>
   );
 };

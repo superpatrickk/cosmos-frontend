@@ -14,7 +14,10 @@ import {
 } from "lucide-react";
 import ConfirmDialog from "../common/ConfirmDialog"; // Assuming this path is correct
 import AssignPreviewModal from "./AssignPreviewModal"; // Assuming this path is correct
-import { normalizeSchedulingCurriculum } from "../../data/curriculumStore"; // Assuming this path is correct
+import {
+  normalizeCurriculumYearLevels,
+  normalizeSchedulingCurriculum,
+} from "../../data/curriculumStore";
 import { curriculumService } from "../../api/services/curriculumService";
 import { scheduleService } from "../../api/services/scheduleService";
 import { roomService } from "../../api/services/roomService";
@@ -36,6 +39,54 @@ const expandYearLevels = (yearLevels) => {
     ? yearLevels
     : String(yearLevels ?? "").split(/\s*(?:,|&|\band\b)\s*/i);
   return values.map((year) => String(year ?? "").trim().toLowerCase()).filter(Boolean);
+};
+
+const normalizeCurriculumKeyPart = (value) => String(value ?? "")
+  .normalize("NFKC")
+  .replace(/[\u2010-\u2015\u2212]/g, "-")
+  .replace(/\s*-\s*/g, "-")
+  .trim()
+  .toUpperCase();
+
+const mergeCurricula = (curricula) => {
+  const grouped = new Map();
+
+  curricula.forEach((curriculum) => {
+    const key = [
+      normalizeCurriculumKeyPart(curriculum.program),
+      normalizeCurriculumKeyPart(curriculum.academicYear),
+      normalizeCurriculumKeyPart(curriculum.semester),
+    ].join("|");
+    const existing = grouped.get(key);
+
+    if (!existing) {
+      const yearLevels = normalizeCurriculumYearLevels(curriculum);
+      grouped.set(key, {
+        ...curriculum,
+        yearLevels,
+        yearLevel: yearLevels.join(", "),
+        subjects: [...(curriculum.subjects || [])],
+      });
+      return;
+    }
+
+    existing.yearLevels = [...new Set([
+      ...existing.yearLevels,
+      ...normalizeCurriculumYearLevels(curriculum),
+    ])];
+    existing.yearLevel = existing.yearLevels.join(", ");
+
+    const subjectsByCode = new Map();
+    [...existing.subjects, ...(curriculum.subjects || [])].forEach((subject) => {
+      const subjectKey = normalizeCurriculumKeyPart(subject.code || subject.id);
+      if (subjectKey && !subjectsByCode.has(subjectKey)) {
+        subjectsByCode.set(subjectKey, subject);
+      }
+    });
+    existing.subjects = [...subjectsByCode.values()];
+  });
+
+  return [...grouped.values()];
 };
 
 const normalizeYearLevelLabel = (yearLevel) => {
@@ -316,7 +367,7 @@ const AssignScheduleForm = () => {
         const data = res?.data ?? res;
         if (!mounted) return;
         if (Array.isArray(data)) {
-          setAvailableCurricula(data.map(normalizeSchedulingCurriculum));
+          setAvailableCurricula(mergeCurricula(data.map(normalizeSchedulingCurriculum)));
         } else {
           setAvailableCurricula([]);
         }
@@ -372,6 +423,14 @@ const AssignScheduleForm = () => {
       : availableCurricula),
     [availableCurricula, filters.program]
   );
+  const curriculumYearCounts = useMemo(
+    () => curriculumOptions.reduce((counts, item) => {
+      const year = normalizeCurriculumKeyPart(item.academicYear);
+      counts.set(year, (counts.get(year) || 0) + 1);
+      return counts;
+    }, new Map()),
+    [curriculumOptions]
+  );
 
   const { existing: existingSchedules, loading: existingLoading, error: existingError } = useExistingSchedules(filters);
 
@@ -409,26 +468,26 @@ const AssignScheduleForm = () => {
     const selectedYear = normalize(filters.yearLevel);
     if (!selectedYear) return [];
 
-    if (selectedCurriculum.subjects?.length) {
-      return selectedCurriculum.subjects
-        .filter((subject) => !subject.yearLevel || normalize(subject.yearLevel) === selectedYear)
-        .map((subject) => ({
-          ...subject,
-          description: subject.description || subject.name || "",
-          units: Number(subject.units || 0),
-          yearLevel: subject.yearLevel || filters.yearLevel,
-          semester: subject.semester || selectedCurriculum.semester,
-        }));
-    }
+    const embeddedSubjects = (selectedCurriculum.subjects || [])
+      .filter((subject) => !subject.yearLevel || normalize(subject.yearLevel) === selectedYear)
+      .map((subject) => ({
+        ...subject,
+        description: subject.description || subject.name || "",
+        units: Number(subject.units || 0),
+        yearLevel: subject.yearLevel || filters.yearLevel,
+        semester: subject.semester || selectedCurriculum.semester,
+      }));
 
-    return availableSubjects
+    const catalogSubjects = availableSubjects
       .filter((subject) => {
         const active = !subject.status || String(subject.status).toLowerCase() === "active";
         const program = subject.course || subject.program || subject.department;
         const matchesProgram = normalize(program) === normalize(selectedCurriculum.program);
         const matchesYear = normalize(subject.yearLevel) === selectedYear;
         const matchesSemester = normalize(subject.semester) === normalize(selectedCurriculum.semester);
-        return active && matchesProgram && matchesYear && matchesSemester;
+        const matchesAcademicYear = !subject.academicYear
+          || normalize(subject.academicYear) === normalize(selectedCurriculum.academicYear);
+        return active && matchesProgram && matchesYear && matchesSemester && matchesAcademicYear;
       })
       .map((subject) => ({
         ...subject,
@@ -437,6 +496,14 @@ const AssignScheduleForm = () => {
         yearLevel: subject.yearLevel || filters.yearLevel,
         semester: subject.semester || selectedCurriculum.semester,
       }));
+
+    const seenCodes = new Set();
+    return [...embeddedSubjects, ...catalogSubjects].filter((subject) => {
+      const key = normalize(subject.code) || String(subject.id ?? "");
+      if (!key || seenCodes.has(key)) return !key;
+      seenCodes.add(key);
+      return true;
+    });
   }, [availableSubjects, filters.yearLevel, selectedCurriculum]);
 
   const courseGroups = useMemo(() => {
@@ -709,7 +776,9 @@ const AssignScheduleForm = () => {
             onChange={(value) => updateFilter("curriculumId", value)}
             options={curriculumOptions.map((item) => ({
               value: String(item.id),
-              label: item.academicYear || "-",
+              label: curriculumYearCounts.get(normalizeCurriculumKeyPart(item.academicYear)) > 1
+                ? `${item.academicYear || "-"} (${item.semester})`
+                : item.academicYear || "-",
             }))}
             placeholder={curriculumOptions.length ? "Select curriculum" : "No curriculum available"}
             disabled={availLoading || Boolean(availError) || curriculumOptions.length === 0}

@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { normalizeCurriculumYearLevels } from "../../data/curriculumStore";
 
 const EMPTY_FORM = {
-  curriculum: "",
+  academicYear: "",
   program: "",
   yearLevel: "1st Year",
   code: "",
   name: "",
+  prerequisite: "None",
+  semester: "1st Semester",
+  description: "",
   type: "Lec",
   lec: 0,
   lab: 0,
@@ -15,6 +19,7 @@ const EMPTY_FORM = {
 
 const TYPES = ["Lec", "Lab", "Lec/Lab"];
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
+const SEMESTERS = ["1st Semester", "2nd Semester", "Summer"];
 
 const Field = ({ label, name, type = "text", options, placeholder, disabled, helpText, span = 1, form, errors, onChange }) => (
   <div className={`flex flex-col gap-1 ${span === 2 ? "col-span-2" : ""}`}>
@@ -112,31 +117,70 @@ const SubjectModal = ({
   ]);
 
   const curriculumOptions = dedupeOptions(
-    (Array.isArray(curricula) ? curricula : [])
-      .filter((curriculum) => curriculum?.academicYear)
-      .map((curriculum) => {
-        const academicYear = String(curriculum.academicYear).trim();
-        return { value: academicYear, label: academicYear };
-      })
+    [
+      ...(Array.isArray(curricula) ? curricula : [])
+        .filter((curriculum) => curriculum?.academicYear)
+        .filter((curriculum) => !form.program || String(curriculum.program || "").trim().toUpperCase() === form.program.trim().toUpperCase())
+        .map((curriculum) => {
+          const academicYear = String(curriculum.academicYear).trim();
+          return { value: academicYear, label: academicYear };
+        }),
+      ...(form.academicYear ? [{ value: String(form.academicYear).trim(), label: String(form.academicYear).trim() }] : []),
+    ]
   );
 
   useEffect(() => {
     if (open) {
-      setForm(data ? { ...EMPTY_FORM, ...data } : EMPTY_FORM);
+      setForm(data
+        ? {
+            ...EMPTY_FORM,
+            ...data,
+            academicYear: data.academicYear || data.curriculum || "",
+            program: data.program || data.course || "",
+          }
+        : EMPTY_FORM);
       setErrors({});
       setSubmitError("");
     }
   }, [open, data]);
 
+  useEffect(() => {
+    if (open && mode === "edit" && !form.academicYear && form.program && curricula.length > 0) {
+      const selectedCurriculum = curricula.find((curriculum) => {
+        const sameProgram = String(curriculum.program || "").trim().toUpperCase() === form.program.trim().toUpperCase();
+        const sameSemester = String(curriculum.semester || "").trim().toUpperCase() === form.semester.trim().toUpperCase();
+        const hasYearLevel = normalizeCurriculumYearLevels(curriculum)
+          .some((yearLevel) => yearLevel.trim().toUpperCase() === form.yearLevel.trim().toUpperCase());
+        return sameProgram && sameSemester && hasYearLevel;
+      });
+      if (selectedCurriculum?.academicYear) {
+        setForm((prev) => prev.academicYear
+          ? prev
+          : { ...prev, academicYear: selectedCurriculum.academicYear });
+      }
+    }
+  }, [open, mode, form.academicYear, form.program, form.yearLevel, form.semester, curricula]);
+
   if (!open) return null;
 
   const validate = () => {
     const e = {};
-    if (!form.curriculum.trim()) e.curriculum = "Curriculum is required.";
+    const matchingCurriculum = curricula.some((curriculum) => {
+      const sameProgram = String(curriculum.program || "").trim().toUpperCase() === form.program.trim().toUpperCase();
+      const sameAcademicYear = String(curriculum.academicYear || "").trim() === form.academicYear.trim();
+      const sameSemester = String(curriculum.semester || "").trim().toUpperCase() === form.semester.trim().toUpperCase();
+      const hasYearLevel = normalizeCurriculumYearLevels(curriculum)
+        .some((yearLevel) => yearLevel.trim().toUpperCase() === form.yearLevel.trim().toUpperCase());
+      return sameProgram && sameAcademicYear && sameSemester && hasYearLevel;
+    });
+    if (!form.academicYear.trim() || !matchingCurriculum) {
+      e.academicYear = "Select a curriculum matching the program, year level, and semester.";
+    }
     if (!form.program.trim()) e.program = "Program is required.";
     if (!form.yearLevel.trim()) e.yearLevel = "Year level is required.";
     if (!form.code.trim()) e.code = "Course code is required.";
     if (!form.name.trim()) e.name = "Course name is required.";
+    if (!form.semester.trim()) e.semester = "Semester is required.";
     if (!form.units || form.units < 1) e.units = "Units must be at least 1.";
     return e;
   };
@@ -297,6 +341,8 @@ const SubjectModal = ({
         ...form,
         course: form.program,
         program: form.program,
+        prerequisite: form.prerequisite?.trim() || "None",
+        description: form.description?.trim() || form.name.trim(),
         type: form.type,
         lec: Number(form.lec || 0),
         lab: Number(form.lab || 0),
@@ -305,7 +351,24 @@ const SubjectModal = ({
       };
       await onSubmit(payload);
     } catch (err) {
-      setSubmitError(err?.response?.data?.message || err?.message || "Failed to save subject.");
+      const responseMessage = err?.response?.data?.message;
+      if (responseMessage && typeof responseMessage === "object" && !Array.isArray(responseMessage)) {
+        const fieldErrors = Object.fromEntries(
+          Object.entries(responseMessage).filter(([, message]) => typeof message === "string")
+        );
+        setErrors((prev) => ({ ...prev, ...fieldErrors }));
+        setSubmitError(
+          Object.keys(fieldErrors).length
+            ? "Please correct the highlighted fields."
+            : "Failed to save subject."
+        );
+      } else {
+        setSubmitError(
+          (typeof responseMessage === "string" && responseMessage)
+            || err?.message
+            || "Failed to save subject."
+        );
+      }
     } finally { setLoading(false); }
   };
 
@@ -337,9 +400,9 @@ const SubjectModal = ({
             </p>
           )}
           <div className="grid grid-cols-2 gap-4">
-            <Field
-              label="Curriculum"
-              name="curriculum"
+                <Field
+                  label="Curriculum"
+                  name="academicYear"
               options={curriculumOptions}
               placeholder={
                 curriculaLoading
@@ -370,6 +433,7 @@ const SubjectModal = ({
             <Field label="Year Level" name="yearLevel" options={YEAR_LEVELS} form={form} errors={errors} onChange={handleChange} />
             <Field label="Code" name="code" form={form} errors={errors} onChange={handleChange} />
             <Field label="Course Name" name="name" span={2} form={form} errors={errors} onChange={handleChange} />
+            <Field label="Semester" name="semester" options={SEMESTERS} form={form} errors={errors} onChange={handleChange} />
             <div className="col-span-2">
               <TypeSelector value={form.type} onChange={handleTypeChange} />
             </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
+import TimeField, { isHalfHourTime } from "./TimeField";
 
 const SEMESTERS = ["1st Semester", "2nd Semester", "Summer"];
 
@@ -81,6 +82,12 @@ const ScheduleEditModal = ({
     if (!form.day)         e.day         = "Required";
     if (!form.startTime)   e.startTime   = "Required";
     if (!form.endTime)     e.endTime     = "Required";
+    if (form.startTime && !isHalfHourTime(form.startTime)) {
+      e.startTime = "Choose a time in 30-minute increments.";
+    }
+    if (form.endTime && !isHalfHourTime(form.endTime)) {
+      e.endTime = "Choose a time in 30-minute increments.";
+    }
     if (!form.course)      e.course      = "Required";
     if (!form.section?.trim()) e.section = "Required";
     if (form.startTime && form.endTime && form.startTime >= form.endTime)
@@ -139,8 +146,8 @@ const ScheduleEditModal = ({
             onChange={handleChange}
           />
           <Field label="Day"      name="day"         options={days} form={form} errors={errors} onChange={handleChange} />
-          <Field label="Start Time" name="startTime" type="time" form={form} errors={errors} onChange={handleChange} />
-          <Field label="End Time"   name="endTime"   type="time" form={form} errors={errors} onChange={handleChange} />
+          <TimeField label="Start Time" name="startTime" value={form.startTime ?? ""} error={errors.startTime} onChange={handleChange} />
+          <TimeField label="End Time" name="endTime" value={form.endTime ?? ""} error={errors.endTime} onChange={handleChange} />
           <Field label="Program"  name="course"      options={courses}  valueKey="code"  labelKey="code" form={form} errors={errors} onChange={handleChange} />
           <Field label="Section"  name="section" form={form} errors={errors} onChange={handleChange} />
           <Field label="Semester" name="semester"    options={SEMESTERS} form={form} errors={errors} onChange={handleChange} />

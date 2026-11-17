@@ -131,21 +131,16 @@ const RoomsPage = () => {
   };
 
   const handleModalSubmit = async (formData) => {
-    try {
-      if (modalMode === "add") {
-        const res = await roomService.create({ ...formData });
-        setRooms((prev) => [res.data, ...prev]);
-      } else {
-        const res = await roomService.update(selected.id, { ...formData });
-        setRooms((prev) =>
-          prev.map((r) => r.id === selected.id ? res.data : r)
-        );
-      }
-      setModalOpen(false);
-    } catch {
-      setError("Failed to save room.");
-      throw new Error("save-failed");
+    if (modalMode === "add") {
+      const res = await roomService.create({ ...formData });
+      setRooms((prev) => [res.data, ...prev]);
+    } else {
+      const res = await roomService.update(selected.id, { ...formData });
+      setRooms((prev) =>
+        prev.map((r) => r.id === selected.id ? res.data : r)
+      );
     }
+    setModalOpen(false);
   };
 
   const handleExport = async () => {
