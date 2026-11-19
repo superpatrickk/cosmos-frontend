@@ -52,6 +52,7 @@ export const saveCurricula = (curricula) => {
 export const normalizeSchedulingCurriculum = (curriculum) => ({
   ...curriculum,
   yearLevels: normalizeCurriculumYearLevels(curriculum),
+  semester: curriculum.semester || "1st Semester",
   version: curriculum.version || `${curriculum.program} ${curriculum.academicYear} Curriculum`,
   subjects: (curriculum.subjects || []).map((subject, index) => ({
     id: subject.id || `${curriculum.id}-S${String(index + 1).padStart(3, "0")}`,

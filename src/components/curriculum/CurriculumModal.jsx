@@ -6,6 +6,7 @@ import {
 import { courseService } from "../../api/services/courseService";
 
 const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+const SEMESTERS = ["1st Semester", "2nd Semester", "Summer"];
 const parseYearLevels = (values) => {
   const source = Array.isArray(values) ? values : String(values ?? "").split(/\s*(?:,|&|\band\b)\s*/i);
   return YEARS.filter((year) => source.some((value) => String(value).trim().toLowerCase() === year.toLowerCase()));
@@ -14,6 +15,7 @@ const EMPTY_FORM = {
   program: "",
   yearLevels: [],
   academicYear: "",
+  semester: "1st Semester",
   description: "",
   status: "Active",
   subjects: [],
@@ -95,6 +97,7 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
     if (!form.program) messages.push("Program is required.");
     if (!form.yearLevels.length) messages.push("Select at least one year level.");
     if (!form.academicYear.trim()) messages.push("Academic year is required.");
+    if (!form.semester) messages.push("Semester is required.");
 
     return messages;
   };
@@ -189,6 +192,14 @@ const CurriculumModalContent = ({ mode, data, onClose, onSubmit }) => {
               value={form.academicYear}
               onChange={(value) => updateForm("academicYear", value)}
               placeholder="e.g. 2026-2027"
+              span={2}
+            />
+            <Select
+              label="Semester"
+              value={form.semester}
+              onChange={(value) => updateForm("semester", value)}
+              options={SEMESTERS}
+              placeholder="Select Semester"
               span={2}
             />
             <Select

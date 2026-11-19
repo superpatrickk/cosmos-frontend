@@ -133,7 +133,7 @@ const FacultyPage = () => {
     .sort((a, b) => a.localeCompare(b));
   const filtered = faculty.filter((member) => {
     const query = search.toLowerCase();
-    const matchesSearch = [member.name, member.programs.join(" "), member.email, member.specialization]
+    const matchesSearch = [member.name, member.programs.join(" "), member.email]
       .join(" ")
       .toLowerCase()
       .includes(query);
@@ -223,7 +223,6 @@ const FacultyPage = () => {
                   <th className="text-left px-6 py-3 font-semibold">Type</th>
                   <th className="text-left px-6 py-3 font-semibold">Program</th>
                   <th className="text-left px-6 py-3 font-semibold">Email</th>
-                  <th className="text-left px-6 py-3 font-semibold">Specialization</th>
                   <th className="text-left px-6 py-3 font-semibold">Status</th>
                   <th className="text-left px-6 py-3 font-semibold">Actions</th>
                 </tr>
@@ -275,7 +274,6 @@ const FacultyPage = () => {
                     <td className="px-6 py-4 text-gray-600">{member.type || "—"}</td>
                     <td className="px-6 py-4 text-gray-600">{member.programs?.join(", ") || "—"}</td>
                     <td className="px-6 py-4 text-gray-600">{member.email || "—"}</td>
-                    <td className="px-6 py-4 text-gray-600">{member.specialization || "—"}</td>
                     <td className="px-6 py-4">
                       <StatusBadge status={member.status} />
                     </td>

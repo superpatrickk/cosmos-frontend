@@ -6,11 +6,10 @@ import CurriculumViewModal from "./CurriculumViewModal";
 import { normalizeSchedulingCurriculum } from "../../data/curriculumStore";
 import { curriculumService } from "../../api/services/curriculumService";
 
-const CurriculumManager = () => {
+const CurriculumManager = ({ search = "" }) => {
   const [curricula, setCurricula]     = useState([]);
   const [loading, setLoading]         = useState(false);
   const [loadError, setLoadError]     = useState(null);
-  const [search, setSearch]           = useState("");
   const [filterProgram, setFilterProgram] = useState("All");
   const [programOptions, setProgramOptions] = useState([]);
   const [showFilter, setShowFilter]   = useState(false);
@@ -24,13 +23,18 @@ const CurriculumManager = () => {
 
   const filtered = useMemo(() =>
     curricula.filter((c) => {
-      const matchSearch = [c.description, c.program, c.yearLevels?.join(" "), c.yearLevel, c.academicYear, c.status]
-        .join(" ")
-        .toLowerCase()
-        .includes(search.toLowerCase());
+      const matchesSearch = [
+        c.description,
+        c.program,
+        c.yearLevels?.join(" "),
+        c.yearLevel,
+        c.semester,
+        c.academicYear,
+        c.status,
+      ].join(" ").toLowerCase().includes(search.toLowerCase());
       const matchProgram = filterProgram === "All" || c.program === filterProgram;
-      return matchSearch && matchProgram;
-    }), [curricula, search, filterProgram]
+      return matchesSearch && matchProgram;
+    }), [curricula, filterProgram, search]
   );
 
   const handleDeleteConfirm = async () => {
@@ -103,14 +107,6 @@ const CurriculumManager = () => {
             </div>
           )}
 
-          <input
-            type="text"
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-44 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
-          />
-
           <div className="relative">
             <button
               onClick={() => setShowFilter((v) => !v)}
@@ -162,6 +158,7 @@ const CurriculumManager = () => {
               <th className="px-6 py-3 text-left">Curriculum</th>
               <th className="px-6 py-3 text-left">Program</th>
               <th className="px-6 py-3 text-left">Year Level</th>
+              <th className="px-6 py-3 text-left">Semester</th>
               <th className="px-6 py-3 text-left">Status</th>
               <th className="px-6 py-3 text-right">Actions</th>
             </tr>
@@ -179,7 +176,7 @@ const CurriculumManager = () => {
 
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center">
+                <td colSpan={6} className="px-6 py-12 text-center">
                   <BookOpen size={32} className="text-gray-200 mx-auto mb-2" />
                   <p className="text-sm text-gray-400">No curricula found.</p>
                 </td>
@@ -197,6 +194,7 @@ const CurriculumManager = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700">{c.yearLevels?.join(", ") || c.yearLevel}</td>
+                <td className="px-6 py-4 text-sm text-gray-700">{c.semester || "1st Semester"}</td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                     c.status === "Active"

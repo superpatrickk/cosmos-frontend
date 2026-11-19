@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, CalendarDays, GraduationCap, Plus, Pencil, Trash2, Search, Eye, Loader2 } from "lucide-react";
+import { BookOpen, CalendarDays, GraduationCap, Plus, Pencil, Trash2, Eye, Loader2 } from "lucide-react";
 import TopBar from "../../components/layout/TopBar";
 import CurriculumManager from "../../components/curriculum/CurriculumManager";
 import AssignScheduleForm from "../../components/curriculum/AssignScheduleForm";
@@ -33,11 +33,10 @@ const normalizeSubject = (item) => ({
   status: item.status || "Active",
 });
 
-const ProgramManager = () => {
+const ProgramManager = ({ search }) => {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add");
   const [selected, setSelected] = useState(null);
@@ -111,26 +110,6 @@ const ProgramManager = () => {
           </button>
         </div>
 
-        <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="relative md:w-72">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search program, code, duration..."
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 shadow-sm focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
-            />
-          </div>
-
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="text-xs font-semibold text-pup-maroon transition hover:underline"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
       </div>
 
       {error && (
@@ -219,12 +198,11 @@ const ProgramManager = () => {
   );
 };
 
-const CourseManager = () => {
+const CourseManager = ({ search }) => {
   const [subjects, setSubjects] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [curricula, setCurricula] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const [filterProgram, setFilterProgram] = useState("All Programs");
   const [filterType, setFilterType] = useState("All Types");
   const [page, setPage] = useState(1);
@@ -328,7 +306,6 @@ const CourseManager = () => {
   };
 
   const resetFilters = () => {
-    setSearch("");
     setFilterProgram("All Programs");
     setFilterType("All Types");
     setPage(1);
@@ -359,16 +336,6 @@ const CourseManager = () => {
 
         <div className="mt-4 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-1 flex-col gap-2 md:flex-row md:items-center">
-            <div className="relative md:w-72">
-              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search course, code, program..."
-                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 shadow-sm focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
-              />
-            </div>
-
             <select
               value={filterProgram}
               onChange={(event) => setFilterProgram(event.target.value)}
@@ -403,7 +370,7 @@ const CourseManager = () => {
               <option value={20}>20</option>
             </select>
 
-            {(search || filterProgram !== "All Programs" || filterType !== "All Types") && (
+            {(filterProgram !== "All Programs" || filterType !== "All Types") && (
               <button
                 onClick={resetFilters}
                 className="text-xs font-semibold text-pup-maroon transition hover:underline"
@@ -552,10 +519,16 @@ const CourseManager = () => {
 
 const CurriculumPage = () => {
   const [activeTab, setActiveTab] = useState("assign");
+  const [search, setSearch] = useState("");
 
   return (
     <>
-      <TopBar title="Curriculum" subtitle="Manage and monitor classroom occupancy" />
+      <TopBar
+        title="Curriculum"
+        subtitle="Manage and monitor classroom occupancy"
+        search={search}
+        onSearch={setSearch}
+      />
 
       <div className="space-y-5 p-6">
         <div className="inline-flex items-center gap-1 rounded-xl border border-white/40 bg-white/30 p-1 shadow-[0_10px_25px_rgba(15,23,42,0.05)] backdrop-blur-[2px]">
@@ -575,10 +548,10 @@ const CurriculumPage = () => {
           ))}
         </div>
 
-        {activeTab === "assign" && <AssignScheduleForm />}
-        {activeTab === "manage" && <CurriculumManager />}
-        {activeTab === "courses" && <CourseManager />}
-        {activeTab === "programs" && <ProgramManager />}
+        {activeTab === "assign" && <AssignScheduleForm search={search} />}
+        {activeTab === "manage" && <CurriculumManager search={search} />}
+        {activeTab === "courses" && <CourseManager search={search} />}
+        {activeTab === "programs" && <ProgramManager search={search} />}
       </div>
     </>
   );

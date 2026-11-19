@@ -50,7 +50,15 @@ const ScheduleAssignmentPage = () => {
     try {
       const response = await scheduleService.getAll();
       const data = response?.data ?? response ?? [];
-      setSchedules(Array.isArray(data) ? data : []);
+      setSchedules(Array.isArray(data)
+        ? data.map((schedule) => ({
+            ...schedule,
+            faculty: schedule.faculty ?? schedule.facultyName ?? "",
+            room: String(schedule.room ?? schedule.roomId ?? ""),
+            roomName: schedule.roomName ?? "",
+            course: schedule.course ?? schedule.courseCode ?? "",
+          }))
+        : []);
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || "Failed to load schedules.");
       setSchedules([]);
@@ -126,9 +134,11 @@ const ScheduleAssignmentPage = () => {
     return schedules.filter((s) => {
       const matchSearch = [
         s.subjectCode, s.subjectName, s.faculty,
-        s.room, s.course, s.section,
+        s.facultyName, s.room, s.roomName, s.course, s.courseCode, s.section, s.day, s.day2,
       ].join(" ").toLowerCase().includes(search.toLowerCase());
-      const matchDay = filterDay === "All Days" || s.day === filterDay;
+      const matchDay = filterDay === "All Days"
+        || s.day === filterDay
+        || s.day2 === filterDay;
       return matchSearch && matchDay;
     });
   }, [schedules, search, filterDay]);
@@ -150,11 +160,30 @@ const ScheduleAssignmentPage = () => {
   const handleCheckConflicts = async (formData) => {
     setConflictResult(null);
     try {
-      const response = await scheduleService.checkConflicts(formData);
-      const payload = response?.data ?? response ?? { hasConflict: false, conflicts: [] };
+      const { day2, startTime2, endTime2, ...firstMeeting } = formData;
+      const meetings = formData.type === "Lec/Lab"
+        ? [
+            firstMeeting,
+            {
+              ...firstMeeting,
+              day: day2,
+              startTime: startTime2,
+              endTime: endTime2,
+            },
+          ]
+        : [firstMeeting];
+      const responses = await Promise.all(meetings.map((meeting) => scheduleService.checkConflicts(meeting)));
+      const results = responses.map((response) => response?.data ?? response ?? {});
+      const conflicts = [...new Map(
+        results.flatMap((result) => Array.isArray(result.conflicts) ? result.conflicts : [])
+          .map((conflict) => [
+            conflict.id ?? `${conflict.day}-${conflict.startTime}-${conflict.endTime}-${conflict.subjectCode}`,
+            conflict,
+          ])
+      ).values()];
       setConflictResult({
-        hasConflict: Boolean(payload.hasConflict ?? payload.conflicts?.length > 0),
-        conflicts: Array.isArray(payload.conflicts) ? payload.conflicts : [],
+        hasConflict: results.some((result) => Boolean(result.hasConflict)) || conflicts.length > 0,
+        conflicts,
       });
     } catch (err) {
       console.error("Failed to check conflicts:", err);
@@ -165,7 +194,29 @@ const ScheduleAssignmentPage = () => {
   const handleAddSchedule = async (formData) => {
     setFormLoading(true);
     try {
-      await scheduleService.create(formData);
+      const { day2, startTime2, endTime2, ...firstMeeting } = formData;
+      const firstResponse = await scheduleService.create(firstMeeting);
+      if (formData.type === "Lec/Lab") {
+        try {
+          await scheduleService.create({
+            ...firstMeeting,
+            day: day2,
+            startTime: startTime2,
+            endTime: endTime2,
+          });
+        } catch (error) {
+          const createdFirstMeeting = firstResponse?.data ?? firstResponse;
+          if (createdFirstMeeting?.id != null) {
+            try {
+              await scheduleService.delete(createdFirstMeeting.id);
+            } catch (rollbackError) {
+              console.error("Failed to roll back the first meeting after the second meeting failed:", rollbackError);
+              throw new Error("The second meeting failed to save, and the first meeting could not be removed. Check Current Schedules before retrying.");
+            }
+          }
+          throw error;
+        }
+      }
       await fetchSchedules();
       setConflictResult(null);
       return true;
@@ -180,7 +231,13 @@ const ScheduleAssignmentPage = () => {
 
   const handleEditSubmit = async (formData) => {
     try {
-      await scheduleService.update(selectedSchedule.id, formData);
+      await scheduleService.update(selectedSchedule.id, {
+        ...formData,
+        facultyName: formData.faculty,
+        roomName: formData.roomName || formData.room,
+        roomId: formData.roomId ?? (formData.room ? Number(formData.room) : null),
+        courseCode: formData.course,
+      });
       await fetchSchedules();
       setEditModalOpen(false);
     } catch (err) {

@@ -299,6 +299,7 @@ const ScheduleForm = ({
 
     if (form.type === "Lec/Lab") {
       if (!form.day2) nextErrors.day2 = "Required";
+      if (form.day2 && form.day2 === form.day) nextErrors.day2 = "Second day must be different from the first day.";
       if (!form.startTime2) nextErrors.startTime2 = "Required";
       if (!form.endTime2) nextErrors.endTime2 = "Required";
       if (form.startTime2 && !isHalfHourTime(form.startTime2)) {
@@ -536,6 +537,10 @@ const ScheduleForm = ({
 
         {form.type === "Lec/Lab" && (
           <>
+            <div className="lg:col-start-1">
+              <TimeField label="Second Start Time" name="startTime2" value={form.startTime2} error={errors.startTime2} onChange={handleChange} />
+            </div>
+            <TimeField label="Second End Time" name="endTime2" value={form.endTime2} error={errors.endTime2} onChange={handleChange} />
             <SelectField
               label="Second Day"
               name="day2"
@@ -545,8 +550,6 @@ const ScheduleForm = ({
               onChange={handleChange}
               placeholder="Select Second Day"
             />
-            <TimeField label="Second Start Time" name="startTime2" value={form.startTime2} error={errors.startTime2} onChange={handleChange} />
-            <TimeField label="Second End Time" name="endTime2" value={form.endTime2} error={errors.endTime2} onChange={handleChange} />
           </>
         )}
 

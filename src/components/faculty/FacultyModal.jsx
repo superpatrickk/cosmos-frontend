@@ -6,7 +6,6 @@ const EMPTY_FORM = {
   type: "",
   programs: [],
   email: "",
-  specialization: "",
   status: "Active",
 };
 
@@ -146,7 +145,6 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
       e.programs = "Select at least one program.";
     }
     if (form.email.trim() && !/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email format.";
-    if (!form.specialization.trim()) e.specialization = "Specialization is required.";
     return e;
   };
 
@@ -179,7 +177,6 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
         programs: selectedPrograms,
         department: selectedPrograms.join(", "),
         email: form.email.trim() || null,
-        specialization: form.specialization.trim(),
         status: form.status,
       });
     } catch (err) {
@@ -234,7 +231,6 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
               GEED faculty do not require a selected program.
             </div>
           )}
-          <Field label="Specialization" name="specialization" form={form} errors={errors} onChange={handleChange} isView={isView} />
           <div className="col-span-2">
             <Field label="Email" name="email" type="email" form={form} errors={errors} onChange={handleChange} isView={isView} />
           </div>

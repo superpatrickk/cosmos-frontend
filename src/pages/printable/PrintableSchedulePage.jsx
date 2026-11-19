@@ -26,6 +26,7 @@ const PrintableSchedulePage = () => {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState("");
   const [filterCourse, setFilterCourse] = useState("All Programs");
   const [filterFaculty, setFilterFaculty] = useState("All Faculty");
   const [filterRoom, setFilterRoom] = useState("All Rooms");
@@ -91,9 +92,18 @@ const PrintableSchedulePage = () => {
       const matchCourse  = filterCourse  === "All Programs" || s.course  === filterCourse;
       const matchFaculty = filterFaculty === "All Faculty" || s.faculty === filterFaculty;
       const matchRoom    = filterRoom    === "All Rooms"   || s.room    === filterRoom;
-      return matchCourse && matchFaculty && matchRoom;
+      const matchSearch = [
+        s.subjectCode,
+        s.subjectName,
+        s.course,
+        s.faculty,
+        s.room,
+        s.section,
+        s.day,
+      ].join(" ").toLowerCase().includes(search.trim().toLowerCase());
+      return matchCourse && matchFaculty && matchRoom && matchSearch;
     });
-  }, [schedules, filterCourse, filterFaculty, filterRoom]);
+  }, [schedules, filterCourse, filterFaculty, filterRoom, search]);
 
   // Build schedule grid — map time slots to days
   const scheduleGrid = useMemo(() => {
@@ -196,6 +206,8 @@ const PrintableSchedulePage = () => {
       <TopBar
         title="Printable Schedule"
         subtitle="Manage and monitor classroom occupancy"
+        search={search}
+        onSearch={setSearch}
       />
 
       <div className="p-6 space-y-5">
