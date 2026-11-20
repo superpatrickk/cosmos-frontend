@@ -30,6 +30,7 @@ const EMPTY_FORM = {
   startTime2: "",
   endTime2: "",
   room: "",
+  room2: "",
 };
 
 const SCHOOL_YEARS = ["2024-2025", "2025-2026", "2026-2027"];
@@ -103,7 +104,10 @@ const InputField = ({ label, name, type = "text", form, errors, onChange, placeh
   </div>
 );
 
-const RoomField = ({ form, errors, rooms, onChange, roomsLoading, roomsError }) => {
+const RoomField = ({
+  form, errors, rooms, onChange, roomsLoading, roomsError,
+  name = "room", label = "Room", placeholder,
+}) => {
   const roomGroups = useMemo(() => {
     const groups = {};
     rooms.forEach((room) => {
@@ -112,24 +116,26 @@ const RoomField = ({ form, errors, rooms, onChange, roomsLoading, roomsError }) 
       groups[floor].push(room);
     });
     return Object.entries(groups).sort(([a], [b]) => {
-      const order = ["Basement", "First Floor", "Second Floor", "Court"];
+      const order = ["Basement", "First Floor", "Second Floor", "Third Floor", "Fourth Floor"];
       return (order.indexOf(a) === -1 ? 99 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 99 : order.indexOf(b));
     });
   }, [rooms]);
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Room</label>
+      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</label>
       <select
-        name="room"
-        value={form.room ?? ""}
+        name={name}
+        value={form[name] ?? ""}
         onChange={onChange}
         disabled={roomsLoading || Boolean(roomsError) || rooms.length === 0}
         className={`px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition bg-white ${
-          errors.room ? "border-red-400 bg-red-50" : "border-gray-200"
+          errors[name] ? "border-red-400 bg-red-50" : "border-gray-200"
         }`}
       >
-        <option value="">{roomsLoading ? "Loading rooms..." : roomsError ? "Rooms unavailable" : rooms.length ? "Select Room" : "No rooms available"}</option>
+        <option value="">
+          {roomsLoading ? "Loading rooms..." : roomsError ? "Rooms unavailable" : rooms.length ? placeholder || "Select Room" : "No rooms available"}
+        </option>
         {roomGroups.map(([floor, groupedRooms]) => (
           <optgroup key={floor} label={floor}>
             {groupedRooms.map((room) => (
@@ -140,7 +146,10 @@ const RoomField = ({ form, errors, rooms, onChange, roomsLoading, roomsError }) 
           </optgroup>
         ))}
       </select>
-      {errors.room && <p className="text-xs text-red-500">{errors.room}</p>}
+      {errors[name] && <p className="text-xs text-red-500">{errors[name]}</p>}
+      {name === "room2" && !errors[name] && (
+        <p className="text-xs text-gray-400">Leave blank to use the first room.</p>
+      )}
       {roomsError && <p className="text-xs text-red-500" role="alert">{roomsError}</p>}
     </div>
   );
@@ -245,6 +254,11 @@ const ScheduleForm = ({
     const selectedRoom = rooms.find((room) => String(room?.id ?? room?.code) === String(form.room)) ??
       rooms.find((room) => normalizeText(room?.code) === normalizeText(form.room)) ??
       null;
+    const selectedSecondRoom = form.room2
+      ? rooms.find((room) => String(room?.id ?? room?.code) === String(form.room2)) ??
+        rooms.find((room) => normalizeText(room?.code) === normalizeText(form.room2)) ??
+        selectedRoom
+      : selectedRoom;
     return {
       schoolYear: form.schoolYear,
       curriculumId: form.curriculum,
@@ -257,6 +271,8 @@ const ScheduleForm = ({
       facultyName: selectedFaculty?.name ?? form.faculty,
       roomName: selectedRoom?.name ?? selectedRoom?.code ?? form.room,
       roomId: selectedRoom?.id ?? null,
+      secondRoomName: selectedSecondRoom?.name ?? selectedSecondRoom?.code ?? form.room2 ?? form.room,
+      secondRoomId: selectedSecondRoom?.id ?? null,
       day: form.day,
       day2: form.day2,
       startTime: form.startTime,
@@ -343,6 +359,7 @@ const ScheduleForm = ({
         next.day2 = "";
         next.startTime2 = "";
         next.endTime2 = "";
+        next.room2 = "";
       }
 
       return next;
@@ -433,16 +450,6 @@ const ScheduleForm = ({
 
       <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <SelectField
-          label="School Year"
-          name="schoolYear"
-          options={SCHOOL_YEARS}
-          form={form}
-          errors={errors}
-          onChange={handleChange}
-          placeholder="Select School Year"
-        />
-
-        <SelectField
           label="Curriculum"
           name="curriculum"
           options={curricula}
@@ -462,6 +469,16 @@ const ScheduleForm = ({
           errors={errors}
           onChange={handleChange}
           placeholder="Select Year Level"
+        />
+
+        <SelectField
+          label="School Year"
+          name="schoolYear"
+          options={SCHOOL_YEARS}
+          form={form}
+          errors={errors}
+          onChange={handleChange}
+          placeholder="Select School Year"
         />
 
         <SelectField
@@ -554,14 +571,29 @@ const ScheduleForm = ({
         )}
 
         <div className="sm:col-span-2 lg:col-span-3">
-          <RoomField
-            form={form}
-            errors={errors}
-            rooms={rooms}
-            roomsLoading={roomsLoading}
-            roomsError={roomsError}
-            onChange={handleChange}
-          />
+          <div className={form.type === "Lec/Lab" ? "grid gap-4 sm:grid-cols-2" : ""}>
+            <RoomField
+              form={form}
+              errors={errors}
+              rooms={rooms}
+              roomsLoading={roomsLoading}
+              roomsError={roomsError}
+              onChange={handleChange}
+            />
+            {form.type === "Lec/Lab" && (
+              <RoomField
+                name="room2"
+                label="Second Room"
+                placeholder="Same as First Room"
+                form={form}
+                errors={errors}
+                rooms={rooms}
+                roomsLoading={roomsLoading}
+                roomsError={roomsError}
+                onChange={handleChange}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -654,12 +686,14 @@ const ScheduleForm = ({
                       day: pendingSchedule.day,
                       start: pendingSchedule.startTime,
                       end: pendingSchedule.endTime,
+                      room: pendingSchedule.roomName,
                     },
                     ...(pendingSchedule.day2
                       ? [{
                           day: pendingSchedule.day2,
                           start: pendingSchedule.startTime2,
                           end: pendingSchedule.endTime2,
+                          room: pendingSchedule.secondRoomName,
                         }]
                       : []),
                   ].map((meeting, index) => (
@@ -671,9 +705,12 @@ const ScheduleForm = ({
                         <CalendarDays size={16} className="text-pup-maroon" />
                         <span className="text-sm font-semibold text-slate-700">{meeting.day}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                        <Clock3 size={15} className="text-slate-400" />
-                        <span>{formatTimeLabel(meeting.start)} – {formatTimeLabel(meeting.end)}</span>
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                          <Clock3 size={15} className="text-slate-400" />
+                          <span>{formatTimeLabel(meeting.start)} – {formatTimeLabel(meeting.end)}</span>
+                        </div>
+                        <span className="text-xs text-slate-500">{meeting.room}</span>
                       </div>
                     </div>
                   ))}
@@ -689,9 +726,14 @@ const ScheduleForm = ({
                 </div>
                 <div className="rounded-xl bg-slate-50 p-3.5">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <DoorOpen size={15} /> Room
+                    <DoorOpen size={15} /> Room{pendingSchedule.day2 ? "s" : ""}
                   </div>
-                  <p className="mt-2 text-sm font-medium text-slate-800">{pendingSchedule.roomName}</p>
+                  <p className="mt-2 text-sm font-medium text-slate-800">
+                    {pendingSchedule.roomName}
+                    {pendingSchedule.day2 && pendingSchedule.secondRoomName !== pendingSchedule.roomName
+                      ? ` / ${pendingSchedule.secondRoomName}`
+                      : ""}
+                  </p>
                 </div>
               </div>
 

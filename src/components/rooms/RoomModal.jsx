@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 
 import { useEffect as useEffectOnce } from "react";
 
-const FLOOR_OPTIONS = ["Basement", "First Floor", "Second Floor", "Court"];
+const FLOOR_OPTIONS = ["Basement", "First Floor", "Second Floor", "Third Floor", "Fourth Floor"];
 
 const EMPTY_FORM = {
   name: "",
@@ -80,7 +80,8 @@ const RoomModal = ({ open, mode, data, onClose, onSubmit }) => {
         const d = res?.data ?? res;
         if (!mounted) return;
         setBuildings(d?.buildings ?? []);
-        setFloors(d?.floors?.length ? d.floors : FLOOR_OPTIONS);
+        const existingFloors = Array.isArray(d?.floors) ? d.floors : [];
+        setFloors([...new Set([...FLOOR_OPTIONS, ...existingFloors])]);
         // types removed from metadata
         setStatuses(d?.statuses ?? []);
         // amenities removed from metadata

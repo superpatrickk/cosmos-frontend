@@ -160,12 +160,14 @@ const ScheduleAssignmentPage = () => {
   const handleCheckConflicts = async (formData) => {
     setConflictResult(null);
     try {
-      const { day2, startTime2, endTime2, ...firstMeeting } = formData;
+      const { day2, startTime2, endTime2, secondRoomId, secondRoomName, ...firstMeeting } = formData;
       const meetings = formData.type === "Lec/Lab"
         ? [
             firstMeeting,
             {
               ...firstMeeting,
+              roomId: secondRoomId ?? firstMeeting.roomId,
+              roomName: secondRoomName ?? firstMeeting.roomName,
               day: day2,
               startTime: startTime2,
               endTime: endTime2,
@@ -194,12 +196,14 @@ const ScheduleAssignmentPage = () => {
   const handleAddSchedule = async (formData) => {
     setFormLoading(true);
     try {
-      const { day2, startTime2, endTime2, ...firstMeeting } = formData;
+      const { day2, startTime2, endTime2, secondRoomId, secondRoomName, ...firstMeeting } = formData;
       const firstResponse = await scheduleService.create(firstMeeting);
       if (formData.type === "Lec/Lab") {
         try {
           await scheduleService.create({
             ...firstMeeting,
+            roomId: secondRoomId ?? firstMeeting.roomId,
+            roomName: secondRoomName ?? firstMeeting.roomName,
             day: day2,
             startTime: startTime2,
             endTime: endTime2,
@@ -377,7 +381,6 @@ const ScheduleAssignmentPage = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wide">
-                  <th className="text-left px-6 py-3 font-semibold">ID</th>
                   <th className="text-left px-6 py-3 font-semibold">Subject</th>
                   <th className="text-left px-6 py-3 font-semibold">Faculty</th>
                   <th className="text-left px-6 py-3 font-semibold">Room</th>
@@ -391,7 +394,7 @@ const ScheduleAssignmentPage = () => {
               <tbody>
                 {loading && [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-gray-50 animate-pulse">
-                    {[...Array(9)].map((_, j) => (
+                    {[...Array(8)].map((_, j) => (
                       <td key={j} className="px-6 py-4">
                         <div className="h-4 bg-gray-100 rounded w-20" />
                       </td>
@@ -401,7 +404,7 @@ const ScheduleAssignmentPage = () => {
 
                 {!loading && error && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-10 text-center text-sm text-red-400">
+                    <td colSpan={8} className="px-6 py-10 text-center text-sm text-red-400">
                       {error}
                     </td>
                   </tr>
@@ -409,7 +412,7 @@ const ScheduleAssignmentPage = () => {
 
                 {!loading && !error && paginated.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center">
+                    <td colSpan={8} className="px-6 py-12 text-center">
                       <CalendarDays size={36} className="text-gray-200 mx-auto mb-2" />
                       <p className="text-sm text-gray-400">No schedules found.</p>
                     </td>
@@ -421,9 +424,6 @@ const ScheduleAssignmentPage = () => {
                     key={sched.id}
                     className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
                   >
-                    <td className="px-6 py-4 text-xs text-gray-400 font-medium">
-                      {sched.id}
-                    </td>
                     <td className="px-6 py-4">
                       <div>
                         <span className="px-2 py-0.5 bg-pup-maroon/10 text-pup-maroon text-xs font-bold rounded">

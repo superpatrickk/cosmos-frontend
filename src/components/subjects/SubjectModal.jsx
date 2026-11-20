@@ -18,6 +18,7 @@ const EMPTY_FORM = {
 };
 
 const TYPES = ["Lec", "Lab", "Lec/Lab"];
+const MAX_UNITS = 15;
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
 const SEMESTERS = ["1st Semester", "2nd Semester", "Summer"];
 
@@ -69,6 +70,98 @@ const Field = ({ label, name, type = "text", options, placeholder, disabled, hel
     )}
     {errors[name] && <p className="text-xs text-red-500">{errors[name]}</p>}
     {helpText && <p className="text-xs text-red-500">{helpText}</p>}
+  </div>
+);
+
+const TypeSelector = ({ value, onChange }) => (
+  <div className="flex flex-col gap-2">
+    <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Type</label>
+    <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
+      {TYPES.map((option) => {
+        const active = value === option;
+        return (
+          <button
+            key={option}
+            type="button"
+            onClick={() => onChange(option)}
+            className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
+              active
+                ? "bg-white text-pup-maroon shadow-sm ring-1 ring-pup-maroon/20"
+                : "text-slate-500 hover:bg-white/70 hover:text-slate-700"
+            }`}
+          >
+            {option}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
+const StepperCard = ({
+  label, value, hint, onDecrease, onIncrease, disabled = false, minValue, maxValue,
+}) => (
+  <div className={`rounded-2xl border ${disabled ? "border-slate-200 bg-slate-100/80" : "border-slate-200 bg-slate-50 shadow-sm"}`}>
+    <div className="flex items-center justify-between gap-3 px-3 py-3">
+      <div className="flex flex-col min-w-0">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</span>
+        {hint && <span className="text-[11px] text-slate-400">{hint}</span>}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onDecrease}
+          disabled={disabled || (minValue !== undefined && Number(value) <= minValue)}
+          className={`flex h-9 w-9 items-center justify-center rounded-xl border text-xl font-medium transition ${
+            disabled || (minValue !== undefined && Number(value) <= minValue)
+              ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300"
+              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+          }`}
+        >
+          −
+        </button>
+
+        <div className="min-w-[42px] text-center text-xl font-bold text-slate-800">{value}</div>
+
+        <button
+          type="button"
+          onClick={onIncrease}
+          disabled={disabled || (maxValue !== undefined && Number(value) >= maxValue)}
+          className={`flex h-9 w-9 items-center justify-center rounded-xl border text-xl font-medium transition ${
+            disabled || (maxValue !== undefined && Number(value) >= maxValue)
+              ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300"
+              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+          }`}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const HoursInputCard = ({ label, hint, name, value, onChange }) => (
+  <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm">
+    <div className="flex items-center justify-between gap-3 px-3 py-3">
+      <div className="flex min-w-0 flex-col">
+        <label htmlFor={`subject-${name}`} className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          {label}
+        </label>
+        <span className="text-[11px] text-slate-400">{hint}</span>
+      </div>
+      <input
+        id={`subject-${name}`}
+        name={name}
+        type="number"
+        min="0"
+        step="1"
+        inputMode="numeric"
+        value={value ?? ""}
+        onChange={(event) => onChange(name, event.target.value)}
+        className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-lg font-bold text-slate-800 focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20"
+      />
+    </div>
   </div>
 );
 
@@ -182,6 +275,7 @@ const SubjectModal = ({
     if (!form.name.trim()) e.name = "Course name is required.";
     if (!form.semester.trim()) e.semester = "Semester is required.";
     if (!form.units || form.units < 1) e.units = "Units must be at least 1.";
+    if (Number(form.units) > MAX_UNITS) e.units = `Units cannot exceed ${MAX_UNITS}.`;
     return e;
   };
 
@@ -191,141 +285,42 @@ const SubjectModal = ({
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
-  const clampHoursToUnits = (nextState, changedField) => {
-    const units = Math.max(1, Number(nextState.units || 1));
-    const nextLec = Math.max(0, Number(nextState.lec || 0));
-    const nextLab = Math.max(0, Number(nextState.lab || 0));
-
-    if (nextState.type === "Lec") {
-      return { ...nextState, lec: Math.min(nextLec, units), lab: 0 };
-    }
-
-    if (nextState.type === "Lab") {
-      return { ...nextState, lab: Math.min(nextLab, units), lec: 0 };
-    }
-
-    let lec = nextLec;
-    let lab = nextLab;
-
-    if (lec + lab > units) {
-      if (changedField === "lec") {
-        lec = Math.max(0, units - lab);
-      } else if (changedField === "lab") {
-        lab = Math.max(0, units - lec);
-      } else {
-        lab = Math.max(0, units - lec);
-      }
-    }
-
-    return { ...nextState, lec, lab };
-  };
-
   const updateNumericValue = (field, delta) => {
     setForm((prev) => {
-      const nextValue = Math.max(0, Number(prev[field] || 0) + delta);
-      const nextState = { ...prev, [field]: nextValue };
+      if (field === "units") {
+        return {
+          ...prev,
+          units: Math.min(MAX_UNITS, Math.max(1, Number(prev.units || 1) + delta)),
+        };
+      }
 
+      const nextState = {
+        ...prev,
+        [field]: Math.max(0, Number(prev[field] || 0) + delta),
+      };
       if (field === "lec" && prev.type === "Lec") {
         nextState.lab = 0;
       }
-
       if (field === "lab" && prev.type === "Lab") {
         nextState.lec = 0;
       }
-
-      if (field === "units") {
-        const units = Math.max(1, Number(nextState.units || 1));
-        nextState.units = units;
-        return clampHoursToUnits(nextState, field);
-      }
-
-      return clampHoursToUnits(nextState, field);
+      return nextState;
     });
   };
 
-  const TypeSelector = ({ value, onChange }) => (
-    <div className="flex flex-col gap-2">
-      <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Type</label>
-      <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
-        {TYPES.map((option) => {
-          const active = value === option;
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => onChange(option)}
-              className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
-                active
-                  ? "bg-white text-pup-maroon shadow-sm ring-1 ring-pup-maroon/20"
-                  : "text-slate-500 hover:bg-white/70 hover:text-slate-700"
-              }`}
-            >
-              {option}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-
-  const StepperCard = ({ label, value, hint, onDecrease, onIncrease, disabled = false }) => (
-    <div className={`rounded-2xl border ${disabled ? "border-slate-200 bg-slate-100/80" : "border-slate-200 bg-slate-50 shadow-sm"}`}>
-      <div className="flex items-center justify-between gap-3 px-3 py-3">
-        <div className="flex flex-col min-w-0">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</span>
-          {hint && <span className="text-[11px] text-slate-400">{hint}</span>}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onDecrease}
-            disabled={disabled}
-            className={`flex h-9 w-9 items-center justify-center rounded-xl border text-xl font-medium transition ${
-              disabled
-                ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-            }`}
-          >
-            −
-          </button>
-
-          <div className="min-w-[42px] text-center text-xl font-bold text-slate-800">{value}</div>
-
-          <button
-            type="button"
-            onClick={onIncrease}
-            disabled={disabled}
-            className={`flex h-9 w-9 items-center justify-center rounded-xl border text-xl font-medium transition ${
-              disabled
-                ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-            }`}
-          >
-            +
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  const handleHoursChange = (name, value) => {
+    if (value !== "" && !/^\d+$/.test(value)) return;
+    setForm((prev) => ({ ...prev, [name]: value === "" ? "" : Number(value) }));
+  };
 
   const handleTypeChange = (value) => {
     setForm((prev) => {
       const next = { ...prev, type: value };
       if (value === "Lec") {
         next.lab = 0;
-        next.lec = Math.min(Number(next.lec || 0), Number(next.units || 1));
       }
       if (value === "Lab") {
         next.lec = 0;
-        next.lab = Math.min(Number(next.lab || 0), Number(next.units || 1));
-      }
-      if (value === "Lec/Lab") {
-        const units = Math.max(1, Number(next.units || 1));
-        if (Number(next.lec || 0) + Number(next.lab || 0) > units) {
-          const excess = Number(next.lec || 0) + Number(next.lab || 0) - units;
-          next.lab = Math.max(0, Number(next.lab || 0) - excess);
-        }
       }
       return next;
     });
@@ -440,29 +435,31 @@ const SubjectModal = ({
 
             <div className="col-span-2 grid gap-3">
               {(form.type === "Lec" || form.type === "Lec/Lab") && (
-                <StepperCard
+                <HoursInputCard
                   label="Lecture Hours"
                   hint="Contact time"
+                  name="lec"
                   value={form.lec}
-                  onDecrease={() => updateNumericValue("lec", -1)}
-                  onIncrease={() => updateNumericValue("lec", 1)}
+                  onChange={handleHoursChange}
                 />
               )}
 
               {(form.type === "Lab" || form.type === "Lec/Lab") && (
-                <StepperCard
+                <HoursInputCard
                   label="Laboratory Hours"
                   hint="Practical time"
+                  name="lab"
                   value={form.lab}
-                  onDecrease={() => updateNumericValue("lab", -1)}
-                  onIncrease={() => updateNumericValue("lab", 1)}
+                  onChange={handleHoursChange}
                 />
               )}
 
               <StepperCard
                 label="Units"
-                hint="Max hours"
+                hint={`Maximum ${MAX_UNITS} units`}
                 value={form.units}
+                minValue={1}
+                maxValue={MAX_UNITS}
                 onDecrease={() => updateNumericValue("units", -1)}
                 onIncrease={() => updateNumericValue("units", 1)}
               />

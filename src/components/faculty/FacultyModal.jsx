@@ -176,7 +176,7 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
         type: form.type,
         programs: selectedPrograms,
         department: selectedPrograms.join(", "),
-        email: form.email.trim() || null,
+        email: form.email.trim() || "",
         status: form.status,
       });
     } catch (err) {
