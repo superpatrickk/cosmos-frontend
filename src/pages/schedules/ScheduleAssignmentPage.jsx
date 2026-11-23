@@ -25,7 +25,6 @@ const ScheduleAssignmentPage = () => {
   const [error, setError]               = useState(null);
   const [search, setSearch]             = useState("");
   const [filterDay, setFilterDay]       = useState("All Days");
-  const [showFilter, setShowFilter]     = useState(false);
   const [currentPage, setCurrentPage]   = useState(1);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -340,39 +339,25 @@ const ScheduleAssignmentPage = () => {
                 {filtered.length} schedule{filtered.length !== 1 ? "s" : ""} found
               </p>
             </div>
-            <div className="relative">
-              <button
-                onClick={() => setShowFilter((v) => !v)}
-                className={`flex items-center gap-2 px-3 py-1.5 text-sm border rounded-lg transition-colors ${
+            <div className="flex items-center gap-2">
+              <Filter size={14} className="text-gray-400" aria-hidden="true" />
+              <label htmlFor="schedule-day-filter" className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Day
+              </label>
+              <select
+                id="schedule-day-filter"
+                value={filterDay}
+                onChange={(event) => setFilterDay(event.target.value)}
+                className={`min-w-36 rounded-lg border bg-white px-3 py-2 text-sm transition focus:border-pup-maroon focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 ${
                   filterDay !== "All Days"
-                    ? "border-pup-maroon text-pup-maroon bg-red-50"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                    ? "border-pup-maroon text-pup-maroon"
+                    : "border-gray-200 text-gray-600"
                 }`}
               >
-                <Filter size={14} />
-                Filter by Day
-                {filterDay !== "All Days" && (
-                  <span className="w-2 h-2 bg-pup-maroon rounded-full" />
-                )}
-              </button>
-
-              {showFilter && (
-                <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg z-10 p-2 space-y-1">
-                  {["All Days", ...DAYS].map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => { setFilterDay(d); setShowFilter(false); }}
-                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
-                        filterDay === d
-                          ? "bg-pup-maroon text-white"
-                          : "hover:bg-gray-50 text-gray-700"
-                      }`}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              )}
+                {["All Days", ...DAYS].map((day) => (
+                  <option key={day} value={day}>{day}</option>
+                ))}
+              </select>
             </div>
           </div>
 

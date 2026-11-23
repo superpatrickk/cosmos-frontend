@@ -10,7 +10,19 @@ import { Eye, Pencil, Trash2, Filter } from "lucide-react";
 const normalizeFaculty = (member) => ({
   ...member,
   email: member.email || "",
-  type: member.type || "",
+  type: ({
+    Core: "Full Time Faculty Core",
+    Allied: "Full Time Faculty Allied",
+    "Part-time": "Part Time Faculty Core",
+    "GEED (Full-time)": "Full Time Faculty Core",
+    "GEED (Part-time)": "Part Time Faculty Core",
+    "FULL TIME FACULTY CORE": "Full Time Faculty Core",
+    "FULL TIME FACULTY ALLIED": "Full Time Faculty Allied",
+    "PART TIME FACULTY CORE": "Part Time Faculty Core",
+    "PART TIME FACULTY ALLIED": "Part Time Faculty Allied",
+    "FULL TIME PART TIME FACULTY CORE": "Full Time Faculty Core",
+    "FULL TIME PART TIME FACULTY ALLIED": "Full Time Faculty Allied",
+  })[member.type] || member.type || "",
   programs: member.programs?.length
     ? member.programs
     : (member.department || "").split(",").map((program) => program.trim()).filter(Boolean),

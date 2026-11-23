@@ -9,6 +9,7 @@ const ConfirmDialog = ({
   confirmLabel = "Confirm",
   confirmStyle = "danger",
   loading = false,
+  loadingLabel = "Verifying...",
   onConfirm,
   onCancel,
   requireAuthentication = confirmStyle === "danger",
@@ -116,7 +117,7 @@ const ConfirmDialog = ({
             disabled={isBusy || (requireAuthentication && !password.trim())}
             className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${confirmClass} disabled:opacity-60`}
           >
-            {isBusy ? "Verifying..." : confirmLabel}
+            {isBusy ? loadingLabel : confirmLabel}
           </button>
         </div>
       </div>

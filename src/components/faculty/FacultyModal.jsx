@@ -10,16 +10,80 @@ const EMPTY_FORM = {
 };
 
 const FACULTY_TYPES = [
-  "Core",
-  "Allied",
-  "Part-time",
-  "GEED (Full-time)",
-  "GEED (Part-time)",
+  {
+    label: "Full Time",
+    options: ["Full Time Faculty Core", "Full Time Faculty Allied"],
+  },
+  {
+    label: "Part Time",
+    options: ["Part Time Faculty Core", "Part Time Faculty Allied"],
+  },
 ];
 
 const STATUSES = ["Active", "On Leave", "Inactive"];
 
-const isGEEDType = (type) => type === "GEED (Full-time)" || type === "GEED (Part-time)";
+const normalizeType = (type) => {
+  const legacyTypes = {
+    "FULL TIME FACULTY CORE": "Full Time Faculty Core",
+    "FULL TIME FACULTY ALLIED": "Full Time Faculty Allied",
+    "PART TIME FACULTY CORE": "Part Time Faculty Core",
+    "PART TIME FACULTY ALLIED": "Part Time Faculty Allied",
+    "FULL TIME PART TIME FACULTY CORE": "Full Time Faculty Core",
+    "FULL TIME PART TIME FACULTY ALLIED": "Full Time Faculty Allied",
+  };
+  return legacyTypes[type] || type || "";
+};
+
+const FacultyTypeField = ({ value, error, isView, onChange }) => (
+  <fieldset className="col-span-2">
+    <div className="mb-2">
+      <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        Faculty Type
+      </legend>
+      {!isView && (
+        <p className="mt-0.5 text-xs text-gray-400">
+          Choose the employment type and faculty category.
+        </p>
+      )}
+    </div>
+    {isView ? (
+      <p className="text-sm font-medium text-gray-800 py-1">{value || "—"}</p>
+    ) : (
+      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Faculty type">
+        {FACULTY_TYPES.flatMap((group) =>
+          group.options.map((option) => {
+            const category = option.endsWith("Core") ? "Core" : "Allied";
+            const selected = value === option;
+            return (
+              <label
+                key={option}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition focus-within:border-pup-maroon focus-within:ring-2 focus-within:ring-pup-maroon/20 ${
+                  selected
+                    ? "border-pup-maroon bg-pup-maroon/5 ring-1 ring-pup-maroon"
+                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                } ${error ? "border-red-400" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="type"
+                  value={option}
+                  checked={selected}
+                  onChange={onChange}
+                  className="accent-pup-maroon focus:outline-none"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-gray-800">{group.label}</span>
+                  <span className="block text-xs text-gray-500">{category}</span>
+                </span>
+              </label>
+            );
+          })
+        )}
+      </div>
+    )}
+    {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+  </fieldset>
+);
 
 const Field = ({ label, name, type = "text", options, form, errors, onChange, isView }) => (
   <div className="flex flex-col gap-1">
@@ -82,6 +146,9 @@ const ProgramField = ({ programs, selected, isView, loading, error, onToggle, fi
   return (
     <fieldset className="col-span-2 flex flex-col gap-2">
       <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">Program</legend>
+      {!loading && !error && programs.length > 0 && (
+        <p className="text-xs text-gray-400">Select one or more programs.</p>
+      )}
       {loading ? (
         <p className="text-sm text-gray-500">Loading programs...</p>
       ) : error ? (
@@ -89,16 +156,24 @@ const ProgramField = ({ programs, selected, isView, loading, error, onToggle, fi
       ) : programs.length === 0 ? (
         <p className="text-sm text-gray-500">No active programs found.</p>
       ) : (
-        <div className="grid max-h-36 grid-cols-2 gap-2 overflow-y-auto rounded-lg border border-gray-200 p-3">
+        <div className={`grid max-h-36 grid-cols-2 gap-2 overflow-y-auto rounded-lg border p-3 ${fieldError ? "border-red-400" : "border-gray-200"}`}>
           {programs.map((program) => (
-            <label key={program.id} className="flex items-start gap-2 text-sm text-gray-700">
+            <label
+              key={program.id}
+              className={`flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm transition hover:bg-gray-50 ${
+                selected.includes(program.code) ? "bg-pup-maroon/5 text-pup-maroon" : "text-gray-700"
+              }`}
+            >
               <input
                 type="checkbox"
                 checked={selected.includes(program.code)}
                 onChange={() => onToggle(program.code)}
-                className="mt-0.5 accent-pup-maroon"
+                className="mt-0.5 accent-pup-maroon focus-visible:outline-none"
               />
-              <span>{program.code} - {program.name}</span>
+              <span>
+                <span className="block text-xs font-bold">{program.code}</span>
+                <span className="block text-xs leading-tight text-gray-500">{program.name}</span>
+              </span>
             </label>
           ))}
         </div>
@@ -120,7 +195,7 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
         ? data.programs
         : data?.department?.split(",").map((program) => program.trim()).filter(Boolean) ?? [];
       setForm(data
-        ? { ...EMPTY_FORM, ...data, programs: selectedPrograms, email: data.email || "", type: data.type || "" }
+        ? { ...EMPTY_FORM, ...data, programs: selectedPrograms, email: data.email || "", type: normalizeType(data.type) }
         : { ...EMPTY_FORM, programs: [] }
       );
       setErrors({});
@@ -141,7 +216,7 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
     if (!form.type) {
       e.type = "Faculty type is required.";
     }
-    if (!isGEEDType(form.type) && !form.programs.length) {
+    if (!form.programs.length) {
       e.programs = "Select at least one program.";
     }
     if (form.email.trim() && !/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email format.";
@@ -170,7 +245,7 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
     setLoading(true);
     setSubmitError("");
     try {
-      const selectedPrograms = isGEEDType(form.type) ? [] : form.programs;
+      const selectedPrograms = form.programs;
       await onSubmit({
         name: form.name.trim(),
         type: form.type,
@@ -196,6 +271,9 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
           <h2 className="text-base font-bold text-gray-800">{title}</h2>
           <button
             onClick={onClose}
+            type="button"
+            aria-label="Close faculty modal"
+            title="Close"
             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <X size={18} />
@@ -212,25 +290,21 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
           <div className="col-span-2">
             <Field label="Full Name" name="name" form={form} errors={errors} onChange={handleChange} isView={isView} />
           </div>
-          <div className="col-span-2">
-            <Field label="Type" name="type" options={FACULTY_TYPES} form={form} errors={errors} onChange={handleChange} isView={isView} />
-          </div>
-          {!isGEEDType(form.type) && (
-            <ProgramField
-              programs={programs}
-              selected={form.programs}
-              isView={isView}
-              loading={programsLoading}
-              error={programsError}
-              fieldError={errors.programs}
-              onToggle={toggleProgram}
-            />
-          )}
-          {isGEEDType(form.type) && !isView && (
-            <div className="col-span-2 text-xs text-gray-400">
-              GEED faculty do not require a selected program.
-            </div>
-          )}
+          <FacultyTypeField
+            value={form.type}
+            error={errors.type}
+            isView={isView}
+            onChange={handleChange}
+          />
+          <ProgramField
+            programs={programs}
+            selected={form.programs}
+            isView={isView}
+            loading={programsLoading}
+            error={programsError}
+            fieldError={errors.programs}
+            onToggle={toggleProgram}
+          />
           <div className="col-span-2">
             <Field label="Email" name="email" type="email" form={form} errors={errors} onChange={handleChange} isView={isView} />
           </div>

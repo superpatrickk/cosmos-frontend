@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import ConfirmDialog from "../common/ConfirmDialog";
 import pupLogo from "../../../Polytechnic_University_of_the_Philippines_Bataan_Logo.png";
 import {
   LayoutDashboard, Users, GraduationCap, BookMarked, BookOpen,
@@ -20,12 +21,20 @@ const navItems = [
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+      setLogoutConfirmOpen(false);
+      navigate("/login", { replace: true });
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   return (
@@ -107,14 +116,30 @@ const Sidebar = () => {
           </div>
         )}
         <button
-          onClick={handleLogout}
+          onClick={() => setLogoutConfirmOpen(true)}
           title={collapsed ? "Logout" : ""}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+          aria-label="Logout"
+          className={`flex items-center w-full rounded-lg text-sm transition-colors ${
+            collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5"
+          } text-white/80 hover:bg-red-500/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
         >
-          <LogOut size={18} className="flex-shrink-0" />
+          <LogOut size={collapsed ? 20 : 18} strokeWidth={2} className="flex-shrink-0" />
           {!collapsed && <span>Logout</span>}
         </button>
       </div>
+
+      <ConfirmDialog
+        open={logoutConfirmOpen}
+        title="Log out of COSMOS?"
+        message="You will need to sign in again to access the system."
+        confirmLabel="Logout"
+        confirmStyle="danger"
+        loading={loggingOut}
+        loadingLabel="Logging out..."
+        requireAuthentication={false}
+        onConfirm={handleLogout}
+        onCancel={() => setLogoutConfirmOpen(false)}
+      />
     </aside>
   );
 };

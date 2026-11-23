@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   BookOpen,
   CalendarDays,
+  ChevronDown,
   CheckCircle2,
   Clock3,
   DoorOpen,
   Loader2,
   Plus,
   RefreshCw,
+  Search,
   UserRound,
+  X,
 } from "lucide-react";
 import { curriculumService } from "../../api/services/curriculumService";
 import TimeField, { isHalfHourTime } from "./TimeField";
@@ -21,6 +24,7 @@ const EMPTY_FORM = {
   yearLevel: "",
   section: "",
   course: "",
+  facultyType: "",
   faculty: "",
   type: "",
   day: "",
@@ -37,6 +41,23 @@ const SCHOOL_YEARS = ["2024-2025", "2025-2026", "2026-2027"];
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
 const SECTION_OPTIONS = ["Section 1", "Section 2", "Section 3", "Section 4"];
 const SCHEDULE_TYPES = ["Lecture", "Laboratory", "Lec/Lab"];
+const FACULTY_TYPES = [
+  "Full Time Faculty Core",
+  "Full Time Faculty Allied",
+  "Part Time Faculty Core",
+  "Part Time Faculty Allied",
+];
+const normalizeFacultyType = (value) => ({
+  Core: "Full Time Faculty Core",
+  Allied: "Full Time Faculty Allied",
+  "Part-time": "Part Time Faculty Core",
+  "GEED (Full-time)": "Full Time Faculty Core",
+  "GEED (Part-time)": "Part Time Faculty Core",
+  "FULL TIME FACULTY CORE": "Full Time Faculty Core",
+  "FULL TIME FACULTY ALLIED": "Full Time Faculty Allied",
+  "PART TIME FACULTY CORE": "Part Time Faculty Core",
+  "PART TIME FACULTY ALLIED": "Part Time Faculty Allied",
+})[normalizeText(value)] || normalizeText(value);
 
 const normalizeText = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
 const formatTimeLabel = (time) => {
@@ -108,9 +129,41 @@ const RoomField = ({
   form, errors, rooms, onChange, roomsLoading, roomsError,
   name = "room", label = "Room", placeholder,
 }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [floorFilter, setFloorFilter] = useState("All Floors");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [open]);
+
   const roomGroups = useMemo(() => {
     const groups = {};
-    rooms.forEach((room) => {
+    const query = normalizeText(search).toLowerCase();
+    rooms
+      .filter((room) => {
+        const matchesSearch = !query || [room.code, room.name, room.building, room.floor]
+          .some((value) => normalizeText(value).toLowerCase().includes(query));
+        const floor = normalizeText(room.floor) || "Other";
+        const matchesFloor = floorFilter === "All Floors" || floor === floorFilter;
+        return matchesSearch && matchesFloor;
+      })
+      .sort((a, b) => {
+        const statusRank = (room) => {
+          const status = normalizeText(room.status).toUpperCase();
+          return status === "AVAILABLE" || !status ? 0 : status === "OCCUPIED" ? 1 : 2;
+        };
+        return statusRank(a) - statusRank(b) ||
+          normalizeText(a.code).localeCompare(normalizeText(b.code));
+      })
+      .forEach((room) => {
       const floor = normalizeText(room.floor) || "Other";
       if (!groups[floor]) groups[floor] = [];
       groups[floor].push(room);
@@ -119,33 +172,204 @@ const RoomField = ({
       const order = ["Basement", "First Floor", "Second Floor", "Third Floor", "Fourth Floor"];
       return (order.indexOf(a) === -1 ? 99 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 99 : order.indexOf(b));
     });
-  }, [rooms]);
+  }, [rooms, search, floorFilter]);
+
+  const floorOptions = useMemo(
+    () => {
+      const availableFloors = new Set(rooms.map((room) =>
+        normalizeText(room.floor) || "Other"
+      ));
+      const standardFloors = ["Basement", "First Floor", "Second Floor", "Third Floor", "Fourth Floor"];
+      const additionalFloors = [...availableFloors].filter((floor) =>
+        !standardFloors.includes(floor)
+      );
+      return ["All Floors", ...standardFloors, ...additionalFloors];
+    },
+    [rooms]
+  );
+
+  const selectableRooms = useMemo(
+    () => roomGroups.flatMap(([, groupedRooms]) => groupedRooms),
+    [roomGroups]
+  );
+
+  const selectedValue = String(form[name] ?? "");
+  const selectedRoom = rooms.find((room) =>
+    String(room.id ?? room.code) === selectedValue
+  );
+
+  const selectRoom = (room) => {
+    const value = String(room.id ?? room.code);
+    onChange({ target: { name, value } });
+    setSearch("");
+    setOpen(false);
+  };
+
+  const clearRoom = (event) => {
+    event.stopPropagation();
+    onChange({ target: { name, value: "" } });
+  };
 
   return (
-    <div className="flex flex-col gap-1">
+    <div ref={containerRef} className="relative flex flex-col gap-1">
       <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</label>
-      <select
+      <button
+        type="button"
         name={name}
-        value={form[name] ?? ""}
-        onChange={onChange}
+        onClick={() => setOpen((current) => !current)}
         disabled={roomsLoading || Boolean(roomsError) || rooms.length === 0}
-        className={`px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 focus:border-pup-maroon transition bg-white ${
-          errors[name] ? "border-red-400 bg-red-50" : "border-gray-200"
-        }`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border bg-white px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-pup-maroon/20 ${
+          errors[name] ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-pup-maroon"
+        } disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400`}
       >
-        <option value="">
-          {roomsLoading ? "Loading rooms..." : roomsError ? "Rooms unavailable" : rooms.length ? placeholder || "Select Room" : "No rooms available"}
-        </option>
-        {roomGroups.map(([floor, groupedRooms]) => (
-          <optgroup key={floor} label={floor}>
-            {groupedRooms.map((room) => (
-              <option key={room.id ?? room.code} value={String(room.id ?? room.code)}>
-                {room.code} {room.name ? `- ${room.name}` : ""}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+        {roomsLoading ? (
+          <span>Loading rooms...</span>
+        ) : roomsError ? (
+          <span>Rooms unavailable</span>
+        ) : selectedRoom ? (
+          <span className="min-w-0">
+            <span className="block truncate font-semibold text-gray-800">
+              {selectedRoom.code} - {selectedRoom.name || "Unnamed room"}
+            </span>
+            <span className="block text-xs text-gray-500">
+              {selectedRoom.floor || "Floor not set"}
+              {selectedRoom.capacity ? ` • Capacity ${selectedRoom.capacity}` : ""}
+            </span>
+          </span>
+        ) : (
+          <span className="text-gray-500">{placeholder || "Select Room"}</span>
+        )}
+        <span className="flex shrink-0 items-center gap-1">
+          {selectedRoom && !roomsLoading && (
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label={`Clear ${label}`}
+              onClick={clearRoom}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") clearRoom(event);
+              }}
+              className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            >
+              <X size={14} />
+            </span>
+          )}
+          <ChevronDown size={16} className={`text-gray-400 transition ${open ? "rotate-180" : ""}`} />
+        </span>
+      </button>
+
+      {open && (
+        <div className="absolute z-30 mt-1 top-full w-full rounded-xl border border-gray-200 bg-white shadow-lg">
+          <div className="border-b border-gray-100 p-2">
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5">
+              <Search size={15} className="shrink-0 text-gray-400" />
+              <input
+                autoFocus
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onFocus={() => setActiveIndex(0)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setOpen(false);
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    setActiveIndex((current) =>
+                      selectableRooms.length ? Math.min(current + 1, selectableRooms.length - 1) : 0
+                    );
+                  }
+                  if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    setActiveIndex((current) => Math.max(current - 1, 0));
+                  }
+                  if (event.key === "Enter" && selectableRooms[activeIndex]) {
+                    event.preventDefault();
+                    selectRoom(selectableRooms[activeIndex]);
+                  }
+                }}
+                placeholder="Search code, name, building, or floor"
+                className="h-9 w-full bg-transparent text-sm text-gray-700 outline-none"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1.5 px-2 py-2">
+              {floorOptions.map((floor) => (
+                <button
+                  key={floor}
+                  type="button"
+                  onClick={() => {
+                    setFloorFilter(floor);
+                    setActiveIndex(0);
+                  }}
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                    floorFilter === floor
+                      ? "bg-pup-maroon text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {floor}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="max-h-64 overflow-y-auto p-2">
+            {roomGroups.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-gray-400">No matching rooms.</p>
+            ) : (
+              roomGroups.map(([floor, groupedRooms]) => (
+                <div key={floor} className="mb-2 last:mb-0">
+                  <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">{floor}</p>
+                  {groupedRooms.map((room) => {
+                    const value = String(room.id ?? room.code);
+                    const selected = selectedValue === value;
+                    const active = selectableRooms.findIndex((candidate) =>
+                      String(candidate.id ?? candidate.code) === value
+                    ) === activeIndex;
+                    const roomStatus = normalizeText(room.status);
+                    const unavailable = roomStatus.toUpperCase() === "MAINTENANCE";
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => selectRoom(room)}
+                        disabled={unavailable}
+                        className={`mb-1 flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition last:mb-0 ${
+                          selected
+                            ? "bg-pup-maroon/10 ring-1 ring-pup-maroon/30"
+                            : active
+                              ? "bg-gray-100 ring-1 ring-gray-200"
+                            : "hover:bg-gray-50"
+                        } disabled:cursor-not-allowed disabled:opacity-55`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-gray-800">
+                            {room.code} - {room.name || "Unnamed room"}
+                          </span>
+                          <span className="block text-xs text-gray-500">
+                            {room.building || "Building not set"}
+                            {room.capacity ? ` • Capacity ${room.capacity}` : ""}
+                          </span>
+                        </span>
+                        {roomStatus && (
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            roomStatus.toUpperCase() === "AVAILABLE"
+                              ? "bg-green-50 text-green-700"
+                              : roomStatus.toUpperCase() === "MAINTENANCE"
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-gray-100 text-gray-600"
+                          }`}>
+                            {roomStatus.charAt(0).toUpperCase() + roomStatus.slice(1).toLowerCase()}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
       {errors[name] && <p className="text-xs text-red-500">{errors[name]}</p>}
       {name === "room2" && !errors[name] && (
         <p className="text-xs text-gray-400">Leave blank to use the first room.</p>
@@ -232,17 +456,17 @@ const ScheduleForm = ({
   }, [subjects, form.program, form.yearLevel, selectedCurriculum]);
 
   const filteredFaculty = useMemo(() => {
-    if (!form.program) return faculty;
     return faculty.filter((member) => {
-      const type = normalizeText(member?.type ?? "");
-      const isGEED = type === "GEED (Full-time)" || type === "GEED (Part-time)" || type === "GEED";
+      const matchesType = !form.facultyType
+        || normalizeFacultyType(member?.type) === form.facultyType;
+      if (!form.program) return matchesType;
       const assignedPrograms = Array.isArray(member?.programs)
         ? member.programs.flatMap((program) => parseProgramList(program))
         : parseProgramList(member?.department ?? "");
       const matchesProgram = assignedPrograms.includes(normalizeProgram(form.program));
-      return isGEED || matchesProgram;
+      return matchesType && matchesProgram;
     });
-  }, [faculty, form.program]);
+  }, [faculty, form.program, form.facultyType]);
 
   const buildPayload = () => {
     const selectedCourse = subjects.find((subject) => String(subject?.id ?? subject?.code) === String(form.course)) ??
@@ -296,6 +520,7 @@ const ScheduleForm = ({
     if (!form.yearLevel) nextErrors.yearLevel = "Required";
     if (!form.section) nextErrors.section = "Required";
     if (!form.course) nextErrors.course = "Required";
+    if (!form.facultyType) nextErrors.facultyType = "Required";
     if (!form.faculty) nextErrors.faculty = "Required";
     if (!form.type) nextErrors.type = "Required";
     if (!form.day) nextErrors.day = "Required";
@@ -353,6 +578,10 @@ const ScheduleForm = ({
 
       if (["curriculum", "program", "yearLevel"].includes(name)) {
         next.course = "";
+      }
+
+      if (name === "facultyType") {
+        next.faculty = "";
       }
 
       if (name === "type" && value !== "Lec/Lab") {
@@ -513,6 +742,16 @@ const ScheduleForm = ({
           onChange={handleChange}
           placeholder={filteredCourses.length ? "Select Course" : "No matching courses"}
           disabled={filteredCourses.length === 0}
+        />
+
+        <SelectField
+          label="Faculty Type"
+          name="facultyType"
+          options={FACULTY_TYPES}
+          form={form}
+          errors={errors}
+          onChange={handleChange}
+          placeholder="Select Faculty Type"
         />
 
         <SelectField
