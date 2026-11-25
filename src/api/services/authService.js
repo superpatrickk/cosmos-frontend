@@ -13,6 +13,9 @@ export const authService = {
   getCurrentUser: () =>
     axiosInstance.get("/auth/me"),
 
+  updateProfile: (profile) =>
+    axiosInstance.put("/auth/me/profile", profile),
+
   requestPasswordReset: (email) =>
     axiosInstance.post("/auth/forgot-password", { email }),
 

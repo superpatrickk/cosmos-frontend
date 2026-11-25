@@ -46,6 +46,8 @@ const FACULTY_TYPES = [
   "Full Time Faculty Allied",
   "Part Time Faculty Core",
   "Part Time Faculty Allied",
+  "Full Time Part time Faculty Core",
+  "Full Time Part time Faculty Allied",
 ];
 const normalizeFacultyType = (value) => ({
   Core: "Full Time Faculty Core",
@@ -57,6 +59,8 @@ const normalizeFacultyType = (value) => ({
   "FULL TIME FACULTY ALLIED": "Full Time Faculty Allied",
   "PART TIME FACULTY CORE": "Part Time Faculty Core",
   "PART TIME FACULTY ALLIED": "Part Time Faculty Allied",
+  "FULL TIME PART TIME FACULTY CORE": "Full Time Part time Faculty Core",
+  "FULL TIME PART TIME FACULTY ALLIED": "Full Time Part time Faculty Allied",
 })[normalizeText(value)] || normalizeText(value);
 
 const normalizeText = (value) => String(value ?? "").replace(/\s+/g, " ").trim();

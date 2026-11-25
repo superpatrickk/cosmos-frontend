@@ -18,6 +18,13 @@ const FACULTY_TYPES = [
     label: "Part Time",
     options: ["Part Time Faculty Core", "Part Time Faculty Allied"],
   },
+  {
+    label: "Full / Part Time",
+    options: [
+      "Full Time Part time Faculty Core",
+      "Full Time Part time Faculty Allied",
+    ],
+  },
 ];
 
 const STATUSES = ["Active", "On Leave", "Inactive"];
@@ -28,8 +35,8 @@ const normalizeType = (type) => {
     "FULL TIME FACULTY ALLIED": "Full Time Faculty Allied",
     "PART TIME FACULTY CORE": "Part Time Faculty Core",
     "PART TIME FACULTY ALLIED": "Part Time Faculty Allied",
-    "FULL TIME PART TIME FACULTY CORE": "Full Time Faculty Core",
-    "FULL TIME PART TIME FACULTY ALLIED": "Full Time Faculty Allied",
+    "FULL TIME PART TIME FACULTY CORE": "Full Time Part time Faculty Core",
+    "FULL TIME PART TIME FACULTY ALLIED": "Full Time Part time Faculty Allied",
   };
   return legacyTypes[type] || type || "";
 };
@@ -49,7 +56,7 @@ const FacultyTypeField = ({ value, error, isView, onChange }) => (
     {isView ? (
       <p className="text-sm font-medium text-gray-800 py-1">{value || "—"}</p>
     ) : (
-      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Faculty type">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Faculty type">
         {FACULTY_TYPES.flatMap((group) =>
           group.options.map((option) => {
             const category = option.endsWith("Core") ? "Core" : "Allied";
@@ -57,7 +64,7 @@ const FacultyTypeField = ({ value, error, isView, onChange }) => (
             return (
               <label
                 key={option}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition focus-within:border-pup-maroon focus-within:ring-2 focus-within:ring-pup-maroon/20 ${
+                className={`flex h-[58px] cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 transition focus-within:border-pup-maroon focus-within:ring-2 focus-within:ring-pup-maroon/20 ${
                   selected
                     ? "border-pup-maroon bg-pup-maroon/5 ring-1 ring-pup-maroon"
                     : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
@@ -72,7 +79,7 @@ const FacultyTypeField = ({ value, error, isView, onChange }) => (
                   className="accent-pup-maroon focus:outline-none"
                 />
                 <span>
-                  <span className="block text-sm font-semibold text-gray-800">{group.label}</span>
+                  <span className="block whitespace-nowrap text-xs font-semibold text-gray-800 sm:text-sm">{group.label}</span>
                   <span className="block text-xs text-gray-500">{category}</span>
                 </span>
               </label>
@@ -156,7 +163,7 @@ const ProgramField = ({ programs, selected, isView, loading, error, onToggle, fi
       ) : programs.length === 0 ? (
         <p className="text-sm text-gray-500">No active programs found.</p>
       ) : (
-        <div className={`grid max-h-36 grid-cols-2 gap-2 overflow-y-auto rounded-lg border p-3 ${fieldError ? "border-red-400" : "border-gray-200"}`}>
+        <div className={`grid max-h-24 grid-cols-2 gap-2 overflow-y-auto rounded-lg border p-2.5 ${fieldError ? "border-red-400" : "border-gray-200"}`}>
           {programs.map((program) => (
             <label
               key={program.id}
@@ -264,10 +271,10 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[calc(100vh-2rem)] flex flex-col">
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex shrink-0 items-center justify-between px-6 py-3 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-800">{title}</h2>
           <button
             onClick={onClose}
@@ -281,7 +288,7 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
         </div>
 
         {/* Modal Body */}
-        <div className="px-6 py-5 grid grid-cols-2 gap-4">
+        <div className="px-6 py-4 grid grid-cols-2 gap-3 overflow-y-auto">
           {submitError && (
             <p className="col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {submitError}
@@ -313,7 +320,7 @@ const FacultyModal = ({ open, mode, data, programs = [], programsLoading = false
 
         {/* Modal Footer */}
         {!isView && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          <div className="flex shrink-0 items-center justify-end gap-3 px-6 py-3 border-t border-gray-100">
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"

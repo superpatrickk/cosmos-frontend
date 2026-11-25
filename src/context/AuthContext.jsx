@@ -41,6 +41,17 @@ export const AuthProvider = ({ children }) => {
     return setSession(data);
   };
 
+  const updateProfile = async (profile) => {
+    await authService.updateProfile(profile);
+    const updatedUser = {
+      ...user,
+      name: profile.fullName.trim(),
+      email: profile.email.trim().toLowerCase(),
+    };
+    setUser(updatedUser);
+    return updatedUser;
+  };
+
   const logout = async () => {
     try {
       await authService.logout();
@@ -51,12 +62,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isInitializing }}>
+    <AuthContext.Provider value={{ user, login, updateProfile, logout, isInitializing }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
+// The provider and its context hook intentionally share this context module.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used inside AuthProvider");

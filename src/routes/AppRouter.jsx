@@ -12,6 +12,7 @@ import FacultySchedulePage from "../pages/facultySchedule/FacultySchedulePage";
 import PrintableSchedulePage from "../pages/printable/PrintableSchedulePage";
 import CurriculumPage from "../pages/curriculum/CurriculumPage";
 import SubjectsPage from "../pages/subjects/SubjectsPage";
+import AccountSettingsPage from "../pages/settings/AccountSettingsPage";
 
 
 
@@ -70,6 +71,11 @@ const AppRouter = () => {
         <Route path="/printable" element={
   <ProtectedRoute>
     <MainLayout><PrintableSchedulePage /></MainLayout>
+  </ProtectedRoute>
+} />
+<Route path="/settings" element={
+  <ProtectedRoute>
+    <MainLayout><AccountSettingsPage /></MainLayout>
   </ProtectedRoute>
 } />
         <Route path="/faculty" element={

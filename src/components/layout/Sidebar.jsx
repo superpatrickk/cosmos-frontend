@@ -4,9 +4,9 @@ import { useAuth } from "../../context/AuthContext";
 import ConfirmDialog from "../common/ConfirmDialog";
 import pupLogo from "../../../Polytechnic_University_of_the_Philippines_Bataan_Logo.png";
 import {
-  LayoutDashboard, Users, GraduationCap, BookMarked, BookOpen,
+  LayoutDashboard, Users, BookMarked,
   DoorOpen, CalendarDays, CalendarCheck, Printer,
-  LogOut, Menu, X
+  LogOut, Menu, X, Settings
 } from "lucide-react";
 
 const navItems = [
@@ -98,14 +98,14 @@ const Sidebar = () => {
         ))}
       </nav>
 
-      {/* User Info + Logout */}
+      {/* User Info + Account Settings + Logout */}
       <div className="border-t border-white/10 p-3 space-y-1">
         {!collapsed && (
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold flex-shrink-0">
+          <div className="flex min-w-0 items-center gap-3 px-2 py-2">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
               {user?.name?.charAt(0) ?? "A"}
             </div>
-            <div className="overflow-hidden">
+            <div className="min-w-0 flex-1 overflow-hidden">
               <p className="text-sm font-medium truncate leading-tight">
                 {user?.name ?? "Admin User"}
               </p>
@@ -115,6 +115,18 @@ const Sidebar = () => {
             </div>
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => navigate("/settings")}
+          title={collapsed ? "Account settings" : ""}
+          aria-label="Account settings"
+          className={`flex w-full items-center rounded-lg text-sm transition-colors ${
+            collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-2.5"
+          } text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
+        >
+          <Settings size={collapsed ? 20 : 18} className="flex-shrink-0" />
+          {!collapsed && <span>Account Settings</span>}
+        </button>
         <button
           onClick={() => setLogoutConfirmOpen(true)}
           title={collapsed ? "Logout" : ""}

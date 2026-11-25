@@ -20,8 +20,8 @@ const normalizeFaculty = (member) => ({
     "FULL TIME FACULTY ALLIED": "Full Time Faculty Allied",
     "PART TIME FACULTY CORE": "Part Time Faculty Core",
     "PART TIME FACULTY ALLIED": "Part Time Faculty Allied",
-    "FULL TIME PART TIME FACULTY CORE": "Full Time Faculty Core",
-    "FULL TIME PART TIME FACULTY ALLIED": "Full Time Faculty Allied",
+    "FULL TIME PART TIME FACULTY CORE": "Full Time Part time Faculty Core",
+    "FULL TIME PART TIME FACULTY ALLIED": "Full Time Part time Faculty Allied",
   })[member.type] || member.type || "",
   programs: member.programs?.length
     ? member.programs
